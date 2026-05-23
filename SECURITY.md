@@ -76,7 +76,7 @@ We are highly interested in reports regarding:
 1. **IPC Bridge Escapes:** Any method where the untrusted React Renderer process can execute arbitrary Node.js code in the Main Process without using the predefined `ipcMain.handle` channels.
 2. **Remote Code Execution (RCE):** Any method where an external, remote attacker can force the IRIS engine to execute code without the local Trusted Operator's consent.
 3. **Vault Key Leakage:** Flaws in how `safeStorage` encrypts/decrypts the BYOK credentials, leading to keys being logged in plaintext, exposed to the Renderer process unnecessarily, or leaked over the network.
-4. **Path Traversal:** Flaws in the `read_file` or `manage_file` tools that allow the AI to bypass intended directory restrictions (if configured).
+4. **Path Traversal:** Flaws in the `read_files` or `manage_files` tools that allow the AI to bypass intended directory restrictions (if configured).
 
 ---
 
