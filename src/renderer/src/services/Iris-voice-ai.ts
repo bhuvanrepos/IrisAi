@@ -205,8 +205,8 @@ ${JSON.stringify(history)}
 
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
     this.analyser = this.audioContext.createAnalyser()
-    this.analyser.fftSize = 256
-    this.analyser.smoothingTimeConstant = 0.5
+    this.analyser.fftSize = 1024
+    this.analyser.smoothingTimeConstant = 0.1
 
     const audioWorkletCode = `
       class PCMProcessor extends AudioWorkletProcessor {
@@ -1562,7 +1562,7 @@ ${JSON.stringify(history)}
         const updateFrame = {
           clientContent: {
             turns: [{ role: 'user', parts: [{ text: msg }] }],
-            turnComplete: true
+            turnComplete: false
           }
         }
 
@@ -1628,7 +1628,7 @@ ${JSON.stringify(history)}
     if (!this.audioContext || !this.analyser) return
 
     const float32Data = base64ToFloat32(base64Audio)
-    const buffer = this.audioContext.createBuffer(1, float32Data.length, 24000)
+    const buffer = this.audioContext.createBuffer(2, float32Data.length, 24000)
     buffer.getChannelData(0).set(float32Data)
 
     const source = this.audioContext.createBufferSource()
@@ -1638,7 +1638,7 @@ ${JSON.stringify(history)}
     this.analyser.connect(this.audioContext.destination)
 
     const currentTime = this.audioContext.currentTime
-    if (this.nextStartTime < currentTime) this.nextStartTime = currentTime + 0.05
+    if (this.nextStartTime < currentTime) this.nextStartTime = currentTime + 0.02
 
     source.start(this.nextStartTime)
     this.nextStartTime += buffer.duration
