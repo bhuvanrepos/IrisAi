@@ -157,7 +157,7 @@ const TitleBar = () => {
         </div>
       )}
 
-      {isMac && <div className="w-[100px]" />}
+      {isMac && <div className="w-25" />}
     </div>
   )
 }
