@@ -86,6 +86,7 @@ export class GeminiLiveService {
   private recognition: any = null
 
   public isAiSpeaking: boolean = false
+  public isSpeechRecognitionActive: boolean = false
 
   constructor() {
     this.apiKey = ''
@@ -263,6 +264,9 @@ ${JSON.stringify(history)}
     window.addEventListener('ai-force-speak', (event: any) => {
       const systemPrompt = event.detail
       if (systemPrompt && this.socket && this.socket.readyState === WebSocket.OPEN) {
+        // Stop any active or queued audio playback immediately
+        this.stopAllAudio()
+
         // Reset speech recognition to clear internal buffers and avoid duplicates
         if (this.recognition) {
           try {
@@ -1571,6 +1575,14 @@ ${JSON.stringify(history)}
 
           if (serverContent.inputTranscription?.text) {
             this.userInputBuffer += serverContent.inputTranscription.text
+            // Dispatch live cloud transcript in real-time if the local SpeechRecognition is inactive
+            if (!this.isSpeechRecognitionActive) {
+              window.dispatchEvent(
+                new CustomEvent('iris-speech-interim', {
+                  detail: { text: this.userInputBuffer }
+                })
+              )
+            }
           }
 
           if (serverContent.turnComplete || serverContent.interrupted) {
@@ -1635,6 +1647,7 @@ ${JSON.stringify(history)}
     this.recognition.lang = 'hi-IN'
     
     this.recognition.onresult = (event: any) => {
+      this.isSpeechRecognitionActive = true // Set local speech active!
       let fullTranscript = ''
       for (let i = 0; i < event.results.length; ++i) {
         fullTranscript += event.results[i][0].transcript
@@ -1689,7 +1702,7 @@ ${JSON.stringify(history)}
       this.workletNode = new AudioWorkletNode(this.audioContext, 'pcm-processor')
 
       this.workletNode.port.onmessage = (event) => {
-        if (!this.socket || this.socket.readyState !== WebSocket.OPEN || this.isMicMuted) return
+        if (!this.socket || this.socket.readyState !== WebSocket.OPEN || this.isMicMuted || this.isAiSpeaking) return
 
         const inputData = event.data
         this.rawAudioBuffer.push(inputData)

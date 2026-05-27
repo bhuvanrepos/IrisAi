@@ -60,6 +60,73 @@ if (typeof window !== 'undefined' && !(window as any).electron) {
         if (channel === 'adb-telemetry') {
           return null;
         }
+        // Simulated handlers for standalone browser sandbox mode
+        if (channel === 'open-app') {
+          return { success: true, output: `[SANDBOX SIMULATOR]: Opened application "${args[0]}"` };
+        }
+        if (channel === 'close-app') {
+          return { success: true, output: `[SANDBOX SIMULATOR]: Closed application "${args[0]}"` };
+        }
+        if (channel === 'google-search') {
+          window.open(`https://www.google.com/search?q=${encodeURIComponent(args[0])}`, '_blank');
+          return { success: true };
+        }
+        if (channel === 'read-directory') {
+          return [
+            { name: 'src', isDirectory: true, size: 0 },
+            { name: 'package.json', isDirectory: false, size: 3650 },
+            { name: 'README.md', isDirectory: false, size: 14368 },
+            { name: 'env.example', isDirectory: false, size: 71 }
+          ];
+        }
+        if (channel === 'create-folder') {
+          return { success: true, output: `[SANDBOX SIMULATOR]: Folder path "${args[0]}" successfully created.` };
+        }
+        if (channel === 'write-file') {
+          return { success: true, output: `[SANDBOX SIMULATOR]: File "${args[0]}" written to disk.` };
+        }
+        if (channel === 'read-file') {
+          return `// [SANDBOX SIMULATOR]: Simulated file content\nconsole.log("Hello, Bhuvan!");`;
+        }
+        if (channel === 'open-file') {
+          return { success: true, output: `[SANDBOX SIMULATOR]: Opened local file: "${args[0]}"` };
+        }
+        if (channel === 'manage-file') {
+          return { success: true, output: `[SANDBOX SIMULATOR]: File operation "${args[0]}" executed.` };
+        }
+        if (channel === 'run-terminal') {
+          return { success: true, output: `[SANDBOX SIMULATOR]: Executed CLI script: "${args[0]}"\nSuccess: Command execution compiled cleanly with code 0.` };
+        }
+        if (channel === 'open-project') {
+          return { success: true, output: `[SANDBOX SIMULATOR]: Loaded workspace in IDE: "${args[0]}"` };
+        }
+        if (channel === 'take-screenshot') {
+          return { success: true, data: '' };
+        }
+        if (channel === 'set-volume') {
+          return { success: true, level: args[0] };
+        }
+        if (channel === 'teleport-windows') {
+          return { success: true };
+        }
+        if (channel === 'create-widget') {
+          return { success: true, id: 'simulated-widget' };
+        }
+        if (channel === 'close-widgets') {
+          return { success: true };
+        }
+        if (channel === 'save-core-memory') {
+          return true;
+        }
+        if (channel === 'search-core-memory') {
+          return [{ fact: "Operator Bhuvan is running IRIS on standard browser sandbox layer." }];
+        }
+        if (channel === 'deploy-wormhole') {
+          return { success: true, url: 'https://iris-wormhole-simulated.locallink' };
+        }
+        if (channel === 'close-wormhole') {
+          return { success: true };
+        }
         return null;
       },
       send: (channel: string, ...args: any[]) => {
