@@ -3,14 +3,19 @@ import { useRef, useMemo } from 'react'
 import * as THREE from 'three'
 import { irisService } from '@renderer/services/Iris-voice-ai'
 
-const CustomParticleSphere = ({ count = 3000 }) => {
+interface CustomParticleSphereProps {
+  isSystemActive: boolean
+  isAiSpeaking: boolean
+}
+
+const CustomParticleSphere = ({ isSystemActive, isAiSpeaking, count = 3000 }: CustomParticleSphereProps & { count?: number }) => {
   const mesh = useRef<THREE.Points>(null)
 
   const dataArray = useMemo(() => new Uint8Array(128), [])
 
-  const colorStart = useMemo(() => new THREE.Color('#33db12'), [])
-  const colorEnd = useMemo(() => new THREE.Color('#FFFFFF'), [])
-  const colorTarget = useMemo(() => new THREE.Color(), [])
+  const colorActive = useMemo(() => new THREE.Color('#10b981'), []) // Emerald green
+  const colorInactive = useMemo(() => new THREE.Color('#d4d4d8'), []) // Zinc gray/white
+  const colorResponse = useMemo(() => new THREE.Color('#06b6d4'), []) // Response blue
 
   const { positions, originalPositions, spreadFactors } = useMemo(() => {
     const pos = new Float32Array(count * 3)
@@ -39,25 +44,37 @@ const CustomParticleSphere = ({ count = 3000 }) => {
   }, [count])
 
   useFrame((state, delta) => {
-    if (!state.clock.running || !mesh.current) return
+    if (!mesh.current) return
 
-    mesh.current.rotation.y += delta * 0.05
-    mesh.current.rotation.z += delta * 0.05
+    // Calm rotation when system is active, very slow when off
+    const rotSpeed = isSystemActive ? 0.08 : 0.02
+    mesh.current.rotation.y += delta * rotSpeed
+    mesh.current.rotation.z += delta * rotSpeed
 
     let volume = 0
-    if (irisService.analyser) {
-      irisService.analyser.getByteFrequencyData(dataArray)
+    if (isSystemActive) {
+      if (isAiSpeaking && irisService.analyser) {
+        irisService.analyser.getByteFrequencyData(dataArray)
 
-      let sum = 0
-      const len = dataArray.length
-      for (let i = 0; i < len; i++) {
-        sum += dataArray[i]
+        let sum = 0
+        const len = dataArray.length
+        for (let i = 0; i < len; i++) {
+          sum += dataArray[i]
+        }
+        volume = sum / len / 128
+      } else {
+        // Heartbeat breathing wave when idle green to show it is alive
+        volume = Math.sin(state.clock.getElapsedTime() * 3) * 0.015 + 0.015
       }
-      volume = sum / len / 128
     }
 
-    colorTarget.lerpColors(colorStart, colorEnd, volume)
-    ;(mesh.current.material as THREE.PointsMaterial).color.copy(colorTarget)
+    // Set particle color based on neural state and response speaking state
+    const targetColor = !isSystemActive 
+      ? colorInactive 
+      : isAiSpeaking 
+        ? colorResponse 
+        : colorActive
+    ;(mesh.current.material as THREE.PointsMaterial).color.copy(targetColor)
 
     const currentPos = mesh.current.geometry.attributes.position.array as Float32Array
 
@@ -66,7 +83,8 @@ const CustomParticleSphere = ({ count = 3000 }) => {
       const iy = i * 3 + 1
       const iz = i * 3 + 2
 
-      const expansion = 1 + volume * spreadFactors[i] * 0.4
+      // Perturb positions based on volume
+      const expansion = 1 + volume * spreadFactors[i] * 0.5
 
       currentPos[ix] = originalPositions[ix] * expansion
       currentPos[iy] = originalPositions[iy] * expansion
@@ -82,7 +100,7 @@ const CustomParticleSphere = ({ count = 3000 }) => {
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
       <pointsMaterial
-        color="#00F0FF"
+        color="#3f3f46"
         size={0.012}
         transparent={true}
         opacity={0.9}
@@ -94,7 +112,7 @@ const CustomParticleSphere = ({ count = 3000 }) => {
   )
 }
 
-const Sphere = () => {
+const Sphere = ({ isSystemActive = false, isAiSpeaking = false }: CustomParticleSphereProps) => {
   return (
     <Canvas
       camera={{ position: [0, 0, 4.5] }}
@@ -103,7 +121,7 @@ const Sphere = () => {
       gl={{ antialias: false, powerPreference: 'high-performance' }}
     >
       <ambientLight intensity={0.6} />
-      <CustomParticleSphere />
+      <CustomParticleSphere isSystemActive={isSystemActive} isAiSpeaking={isAiSpeaking} />
     </Canvas>
   )
 }

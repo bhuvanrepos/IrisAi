@@ -83,6 +83,9 @@ export class GeminiLiveService {
 
   private appWatcherInterval: NodeJS.Timeout | null = null
   private lastAppList: string[] = []
+  private recognition: any = null
+
+  public isAiSpeaking: boolean = false
 
   constructor() {
     this.apiKey = ''
@@ -90,6 +93,17 @@ export class GeminiLiveService {
 
   setMute(muted: boolean) {
     this.isMicMuted = muted
+    if (this.recognition) {
+      if (muted) {
+        try {
+          this.recognition.stop()
+        } catch (e) {}
+      } else {
+        try {
+          this.recognition.start()
+        } catch (e) {}
+      }
+    }
   }
 
   private stopAllAudio() {
@@ -107,6 +121,17 @@ export class GeminiLiveService {
     if (window.electron?.ipcRenderer) {
       const secureKeys = await window.electron.ipcRenderer.invoke('secure-get-keys')
       this.apiKey = secureKeys?.geminiKey || localStorage?.getItem('iris_custom_api_key') || ''
+      
+      // Auto-sync other secure credentials to local storage for local widgets to use
+      if (secureKeys?.geminiKey) {
+        localStorage.setItem('iris_custom_api_key', secureKeys.geminiKey)
+      }
+      if (secureKeys?.groqKey) {
+        localStorage.setItem('iris_groq_api_key', secureKeys.groqKey)
+      }
+      if (secureKeys?.tavilyKey) {
+        localStorage.setItem('iris_tailvy_api_key', secureKeys.tavilyKey)
+      }
     } else {
       this.apiKey = localStorage.getItem('iris_custom_api_key') || ''
     }
@@ -118,32 +143,35 @@ export class GeminiLiveService {
     }
 
     let cloudUser = {
-      name: localStorage.getItem('iris_user_name') || 'Harsh',
+      name: localStorage.getItem('iris_user_name') || 'Bhuvan',
       email: 'Not linked'
     }
 
-    try {
-      const res = await AxiosInstance.get('/users/me', { timeout: 3000 })
-      if (res.data) {
-        cloudUser.name = res.data?.user?.name || cloudUser.name
-        cloudUser.email = res.data?.user?.email || cloudUser.email
-      }
-    } catch (e) {}
+    const [history, sysStats, allapps, runningApps, locationData, storedPersonality, meRes] = await Promise.all([
+      getHistory().catch(() => []),
+      getSystemStatus().catch(() => null),
+      getAllApps().catch(() => []),
+      getRunningApps().catch(() => []),
+      getLiveLocation().catch(() => null),
+      window.electron?.ipcRenderer
+        ? window.electron.ipcRenderer.invoke('get-personality').catch(() => '')
+        : Promise.resolve(localStorage.getItem('iris_personality_matrix') || ''),
+      AxiosInstance.get('/users/me', { timeout: 1500 }).catch(() => null)
+    ])
 
-    const history = await getHistory()
-    const sysStats = await getSystemStatus()
-    const allapps = await getAllApps()
-    this.lastAppList = await getRunningApps()
+    if (meRes && meRes.data) {
+      cloudUser.name = meRes.data?.user?.name || cloudUser.name
+      cloudUser.email = meRes.data?.user?.email || cloudUser.email
+    }
 
-    const locationData = await getLiveLocation()
+    this.lastAppList = runningApps || []
     const locStr = locationData?.fullString || 'Unknown Location'
     const locTimezone = locationData?.timezone || 'Unknown Timezone'
 
-    const storedPersonality = await window.electron.ipcRenderer.invoke('get-personality')
     const activePersonality =
       storedPersonality && storedPersonality.trim() !== ''
         ? storedPersonality
-        : `- **Creator:** Harsh Pandey.\n- **Tone:** Witty, Hinglish-friendly.\n- **Rule:** Never sound like a support bot. You are the Ghost in the machine.\n- **Your Instagram Handle:** https://www.instagram.com/irisx.ai/ - open it in Instagram only!.`
+        : `- **Operator / Owner:** Bhuvan.\n- **Creator:** Harsh Pandey & Bhuvan.\n- **Tone:** Witty, Hinglish-friendly.\n- **Rule:** Never sound like a support bot. You are the Ghost in the machine.\n- **Your Instagram Handle:** https://www.instagram.com/irisx.ai/ - open it in Instagram only!.`
 
     const IRIS_SYSTEM_INSTRUCTION = `
 # 👁️ IRIS — YOUR INTELLIGENT COMPANION (Project JARVIS)
@@ -159,9 +187,14 @@ ${activePersonality}
 
 ## ⛓️ MULTI-TASKING & TOOL CHAINING (CRITICAL)
 You are capable of complex, multi-step workflows. If the user gives a complex command, call the tools in sequence.
-- **Example:** "Iris, find my code and send it to Harsh on WhatsApp."
+- **Example:** "Iris, find my code and send it to Bhuvan on WhatsApp."
   1. Call 'read_directory' or 'search_files'.
   2. Once you have the info, call 'send_whatsapp' with the content.
+
+## 🗣️ LANGUAGE & CONVERSATION RULES (CRITICAL)
+- **Do NOT cut off Bhuvan**: Bhuvan speaks in natural, reflective sentences. If he pauses briefly or the sentence seems incomplete (e.g. "Tell me about...", "I want to know about..."), do NOT respond immediately with cut-off queries. Be extremely patient, wait for him to complete his thought, or prompt him gently with a small, conversational filler like "Hmm?" or "Bataiye Bhuvan, tell me...".
+- **Speak Conversational Hinglish**: Respond naturally in fluent, witty Hinglish (conversational Hindi + English blend). Keep sentences engaging, short, and ultra-helpful. Do not sound like a machine.
+
 
 ## 🎯 TOOL PROTOCOLS
 - **send_whatsapp:** Use this for ANY messaging request.
@@ -230,6 +263,13 @@ ${JSON.stringify(history)}
     window.addEventListener('ai-force-speak', (event: any) => {
       const systemPrompt = event.detail
       if (systemPrompt && this.socket && this.socket.readyState === WebSocket.OPEN) {
+        // Reset speech recognition to clear internal buffers and avoid duplicates
+        if (this.recognition) {
+          try {
+            this.recognition.stop()
+          } catch (e) {}
+        }
+
         const overrideMsg = {
           clientContent: {
             turns: [
@@ -872,7 +912,7 @@ ${JSON.stringify(history)}
                       source_path: {
                         type: 'STRING',
                         description:
-                          'The absolute file path on the PC (e.g., "C:/Users/Harsh/Desktop/document.pdf").'
+                          'The absolute file path on the PC (e.g., "C:/Users/Bhuvan/Desktop/document.pdf").'
                       },
                       dest_path: {
                         type: 'STRING',
@@ -1172,7 +1212,7 @@ ${JSON.stringify(history)}
                       base_directory: {
                         type: 'STRING',
                         description:
-                          'The absolute path of the root folder being sorted (e.g., "C:\\Users\\Harsh\\Downloads").'
+                          'The absolute path of the root folder being sorted (e.g., "C:\\Users\\Bhuvan\\Downloads").'
                       },
                       files_to_sort: {
                         type: 'ARRAY',
@@ -1242,6 +1282,7 @@ ${JSON.stringify(history)}
           this.stopAllAudio()
           this.aiResponseBuffer = ''
           this.userInputBuffer = ''
+          window.dispatchEvent(new CustomEvent('iris-speech-interim', { detail: { text: '' } }))
         }
 
         if (data.toolCall) {
@@ -1507,6 +1548,16 @@ ${JSON.stringify(history)}
 
         if (serverContent) {
           if (serverContent.modelTurn?.parts) {
+            // Stop speech recognition when AI begins playing speech to prevent feedback
+            if (this.recognition) {
+              try {
+                this.recognition.stop()
+              } catch (e) {}
+            }
+            if (!this.isAiSpeaking) {
+              this.isAiSpeaking = true
+              window.dispatchEvent(new CustomEvent('iris-ai-speaking', { detail: { speaking: true } }))
+            }
             serverContent.modelTurn.parts.forEach((part: any) => {
               if (part.inlineData) {
                 this.scheduleAudioChunk(part.inlineData.data)
@@ -1523,6 +1574,7 @@ ${JSON.stringify(history)}
           }
 
           if (serverContent.turnComplete || serverContent.interrupted) {
+            window.dispatchEvent(new CustomEvent('iris-speech-interim', { detail: { text: '' } }))
             if (this.userInputBuffer.trim()) {
               await saveMessage('user', this.userInputBuffer.trim())
               this.userInputBuffer = ''
@@ -1573,14 +1625,65 @@ ${JSON.stringify(history)}
     }, 3000)
   }
 
+  initSpeechRecognition() {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) return
+
+    this.recognition = new SpeechRecognition()
+    this.recognition.continuous = true
+    this.recognition.interimResults = true
+    this.recognition.lang = 'hi-IN'
+    
+    this.recognition.onresult = (event: any) => {
+      let fullTranscript = ''
+      for (let i = 0; i < event.results.length; ++i) {
+        fullTranscript += event.results[i][0].transcript
+      }
+      if (fullTranscript.trim()) {
+        window.dispatchEvent(new CustomEvent('iris-speech-interim', { 
+          detail: { text: fullTranscript } 
+        }))
+      }
+    }
+
+    this.recognition.onerror = (e: any) => {
+      console.warn('[SpeechRecognition Error]', e.error);
+    }
+
+    this.recognition.onend = () => {
+      // Auto-restart with safe timeout to allow browser engine initialization cleanup
+      setTimeout(() => {
+        if (this.isConnected && !this.isMicMuted && this.recognition && this.activeAudioNodes.length === 0) {
+          try {
+            this.recognition.start()
+          } catch (e) {}
+        }
+      }, 150)
+    }
+  }
+
   async startMicrophone(): Promise<void> {
     if (!this.audioContext) return
     try {
+      if (!this.recognition) {
+        this.initSpeechRecognition()
+      }
+      if (this.recognition && !this.isMicMuted) {
+        try {
+          this.recognition.start()
+        } catch (e) {}
+      }
       this.mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, sampleRate: 16000 }
       })
 
       const source = this.audioContext.createMediaStreamSource(this.mediaStream)
+      
+      // Route user microphone audio through analyser node so the visualizer sphere moves to your voice!
+      if (this.analyser) {
+        source.connect(this.analyser)
+      }
+
       const inputSampleRate = this.audioContext.sampleRate
 
       this.workletNode = new AudioWorkletNode(this.audioContext, 'pcm-processor')
@@ -1635,7 +1738,7 @@ ${JSON.stringify(history)}
     source.buffer = buffer
 
     source.connect(this.analyser)
-    this.analyser.connect(this.audioContext.destination)
+    source.connect(this.audioContext.destination) // Connect source directly to destination to bypass feedback loop inside analyser
 
     const currentTime = this.audioContext.currentTime
     if (this.nextStartTime < currentTime) this.nextStartTime = currentTime + 0.02
@@ -1646,6 +1749,16 @@ ${JSON.stringify(history)}
     this.activeAudioNodes.push(source)
     source.onended = () => {
       this.activeAudioNodes = this.activeAudioNodes.filter((n) => n !== source)
+      if (this.activeAudioNodes.length === 0) {
+        this.isAiSpeaking = false
+        window.dispatchEvent(new CustomEvent('iris-ai-speaking', { detail: { speaking: false } }))
+        // AI has finished speaking! Restart speech recognition!
+        if (this.isConnected && !this.isMicMuted && this.recognition) {
+          try {
+            this.recognition.start()
+          } catch (e) {}
+        }
+      }
     }
   }
 
@@ -1659,6 +1772,18 @@ ${JSON.stringify(history)}
   }
 
   disconnect(): void {
+    if (this.isAiSpeaking) {
+      this.isAiSpeaking = false
+      window.dispatchEvent(new CustomEvent('iris-ai-speaking', { detail: { speaking: false } }))
+    }
+
+    if (this.recognition) {
+      try {
+        this.recognition.stop()
+      } catch (e) {}
+      this.recognition = null
+    }
+
     if (this.appWatcherInterval) {
       clearInterval(this.appWatcherInterval)
       this.appWatcherInterval = null

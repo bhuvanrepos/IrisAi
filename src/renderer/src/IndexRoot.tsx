@@ -33,9 +33,13 @@ const IndexRoot = () => {
   const aiIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    window.electron.ipcRenderer.on('overlay-mode', (_e, mode) => setIsOverlay(mode))
+    if (window.electron?.ipcRenderer) {
+      window.electron.ipcRenderer.on('overlay-mode', (_e, mode) => setIsOverlay(mode))
+    }
     return () => {
-      window.electron.ipcRenderer.removeAllListeners('overlay-mode')
+      if (window.electron?.ipcRenderer) {
+        window.electron.ipcRenderer.removeAllListeners('overlay-mode')
+      }
     }
   }, [])
 
@@ -155,8 +159,8 @@ const IndexRoot = () => {
       const vid = processingVideoRef.current
       if (vid && vid.readyState === 4 && irisService.socket?.readyState === WebSocket.OPEN) {
         const canvas = document.createElement('canvas')
-        canvas.width = 800
-        canvas.height = 450
+        canvas.width = 360
+        canvas.height = 202
         const ctx = canvas.getContext('2d')
         if (ctx) {
           ctx.drawImage(vid, 0, 0, canvas.width, canvas.height)
@@ -164,7 +168,7 @@ const IndexRoot = () => {
           irisService.sendVideoFrame(base64)
         }
       }
-    }, 2000)
+    }, 3500)
   }
 
   if (isOverlay) {

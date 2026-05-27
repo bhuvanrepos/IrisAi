@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef, useState } from 'react'
 import Sphere from '@renderer/components/Sphere'
+import { saveMessage } from '@renderer/services/iris-ai-brain'
 import {
   RiCpuLine,
   RiCameraLine,
@@ -67,10 +68,85 @@ export default function DashboardView({
   const [modelsLoaded, setModelsLoaded] = useState(false)
 
   const [networkStats, setNetworkStats] = useState({ ping: 24, rate: 1.2, tx: 40, rx: 60 })
+  const [interimSpeech, setInterimSpeech] = useState('')
+  const [isAiSpeaking, setIsAiSpeaking] = useState(false)
+  const [inputText, setInputText] = useState('')
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const handleTextSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const textToSubmit = inputText.trim()
+    if (!textToSubmit) return
+
+    setInputText('')
+
+    // Reset speech recognition buffers to prevent duplicating spoken words
+    window.dispatchEvent(new CustomEvent('iris-speech-interim', { detail: { text: '' } }))
+
+    // Save message locally
+    await saveMessage('user', textToSubmit)
+
+    // Dispatch custom event to trigger Gemini connection response
+    window.dispatchEvent(
+      new CustomEvent('ai-force-speak', { detail: textToSubmit })
+    )
+  }
+
+  // 3-second silence watchdog for SpeechRecognition auto-submit
+  useEffect(() => {
+    if (!interimSpeech.trim()) {
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current)
+      }
+      return
+    }
+
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current)
+    }
+
+    silenceTimeoutRef.current = setTimeout(async () => {
+      const textToSubmit = interimSpeech.trim()
+      if (textToSubmit) {
+        // Save message locally
+        await saveMessage('user', textToSubmit)
+
+        // Dispatch force speak to AI
+        window.dispatchEvent(
+          new CustomEvent('ai-force-speak', { detail: textToSubmit })
+        )
+
+        // Reset local text states
+        setInterimSpeech('')
+        window.dispatchEvent(new CustomEvent('iris-speech-interim', { detail: { text: '' } }))
+      }
+    }, 3000)
+
+    return () => {
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current)
+      }
+    }
+  }, [interimSpeech])
+
+  useEffect(() => {
+    const handleInterimSpeech = (e: any) => {
+      setInterimSpeech(e.detail.text || '')
+    }
+    const handleAiSpeaking = (e: any) => {
+      setIsAiSpeaking(e.detail.speaking)
+    }
+    window.addEventListener('iris-speech-interim', handleInterimSpeech)
+    window.addEventListener('iris-ai-speaking', handleAiSpeaking)
+    return () => {
+      window.removeEventListener('iris-speech-interim', handleInterimSpeech)
+      window.removeEventListener('iris-ai-speaking', handleAiSpeaking)
+    }
+  }, [])
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-  }, [chatHistory])
+  }, [chatHistory, interimSpeech])
 
   useEffect(() => {
     if (!isSystemActive) {
@@ -483,9 +559,9 @@ export default function DashboardView({
         </div>
 
         <div
-          className={`w-[60vh] h-[60vh] max-w-full transition-all duration-1000 ${isSystemActive ? 'opacity-100 scale-100' : 'opacity-85 scale-90 grayscale'}`}
+          className={`w-[60vh] h-[60vh] max-w-full transition-all duration-1000 ${isSystemActive ? 'opacity-100 scale-100' : 'opacity-85 scale-90'}`}
         >
-          <Sphere />
+          <Sphere isSystemActive={isSystemActive} isAiSpeaking={isAiSpeaking} />
         </div>
 
         <div className="absolute bottom-10 z-50">
@@ -521,10 +597,39 @@ export default function DashboardView({
             <span className="text-[10px] font-bold tracking-widest text-zinc-400">
               <RiTerminalBoxLine className="inline mr-1" /> TRANSCRIPT
             </span>
-            <span className="text-[8px] font-mono text-emerald-500/50">LIVE-LOG</span>
+            <div className="flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                !isSystemActive 
+                  ? 'bg-zinc-600' 
+                  : isMicMuted 
+                    ? 'bg-red-500 shadow-[0_0_8px_red]' 
+                    : isAiSpeaking 
+                      ? 'bg-purple-500 shadow-[0_0_8px_purple] animate-pulse' 
+                      : interimSpeech 
+                        ? 'bg-emerald-400 shadow-[0_0_8px_#34d399] animate-ping' 
+                        : 'bg-emerald-500 shadow-[0_0_8px_#10b981] animate-pulse'
+              }`} />
+              <span className="text-[8px] font-mono font-black tracking-wider uppercase text-zinc-400">
+                {!isSystemActive 
+                  ? 'STANDBY' 
+                  : isMicMuted 
+                    ? 'MIC MUTED' 
+                    : isAiSpeaking 
+                      ? 'AI SPEAKING' 
+                      : interimSpeech 
+                        ? 'USER SPEAKING' 
+                        : 'LISTENING'}
+              </span>
+            </div>
           </div>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-small">
-            {chatHistory.length === 0 ? (
+          <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-small mb-3">
+            <style>{`
+              @keyframes soundwave {
+                0%, 100% { height: 4px; }
+                50% { height: 12px; }
+              }
+            `}</style>
+            {chatHistory.length === 0 && !interimSpeech ? (
               <div className="h-full flex flex-col items-center justify-center text-zinc-700 gap-2 opacity-50">
                 <RiHistoryLine size={24} />
                 <span className="text-[9px] tracking-widest uppercase font-mono">
@@ -532,20 +637,96 @@ export default function DashboardView({
                 </span>
               </div>
             ) : (
-              chatHistory.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
-                >
+              <>
+                {chatHistory.map((msg, idx) => (
                   <div
-                    className={`max-w-[95%] py-2 px-3 rounded-lg text-[11px] leading-relaxed border font-mono font-semibold ${msg.role === 'user' ? 'bg-emerald-900/20 border-emerald-500/20 text-emerald-100/90 rounded-br-none' : 'bg-zinc-900/50 border-white/5 text-zinc-400 rounded-bl-none'}`}
+                    key={idx}
+                    className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
                   >
-                    {msg.parts && msg.parts[0] ? msg.parts[0].text : msg.content}
+                    <div
+                      className={`max-w-[95%] py-2 px-3 rounded-lg text-[11px] leading-relaxed border font-mono font-semibold ${msg.role === 'user' ? 'bg-emerald-900/20 border-emerald-500/20 text-emerald-100/90 rounded-br-none' : 'bg-zinc-900/50 border-white/5 text-zinc-400 rounded-bl-none'}`}
+                    >
+                      {msg.parts && msg.parts[0] ? msg.parts[0].text : msg.content}
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+                {interimSpeech && (
+                  <div className="flex flex-col items-end">
+                    <div className="max-w-[95%] py-2.5 px-3.5 rounded-lg text-[11px] leading-relaxed border font-mono font-semibold bg-emerald-500/10 border-emerald-400/40 text-emerald-300 rounded-br-none shadow-[0_0_15px_rgba(16,185,129,0.15)] flex flex-col gap-1.5 animate-pulse">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-end gap-0.5 h-3">
+                          <span className="w-0.5 h-2.5 bg-emerald-400 rounded-full animate-[soundwave_0.8s_ease-in-out_infinite]" />
+                          <span className="w-0.5 h-1.5 bg-emerald-400 rounded-full animate-[soundwave_0.8s_ease-in-out_infinite_0.15s]" />
+                          <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-[soundwave_0.8s_ease-in-out_infinite_0.3s]" />
+                          <span className="w-0.5 h-2 bg-emerald-400 rounded-full animate-[soundwave_0.8s_ease-in-out_infinite_0.45s]" />
+                        </div>
+                        <span className="text-[9px] tracking-wider text-emerald-400/70 font-black">ME (SPEAKING...)</span>
+                      </div>
+                      <div>{interimSpeech}</div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
+
+          {/* Combined Text Input & Mic / Status Controls */}
+          {isSystemActive && (
+            <div className="mt-auto border-t border-white/5 pt-3">
+              <form onSubmit={handleTextSubmit} className="flex items-center gap-2 relative">
+                <input
+                  type="text"
+                  value={inputText}
+                  onChange={(e) => {
+                    setInputText(e.target.value)
+                    // Reset watchdog timer if they are typing, to avoid automatic submits from background noise
+                    if (silenceTimeoutRef.current) {
+                      clearTimeout(silenceTimeoutRef.current)
+                    }
+                  }}
+                  placeholder={
+                    isMicMuted 
+                      ? "Type a command..." 
+                      : interimSpeech 
+                        ? `Live: ${interimSpeech}` 
+                        : "Speak or type..."
+                  }
+                  className="flex-1 bg-black/40 text-white placeholder-zinc-500 text-[11px] font-mono px-3 py-2 rounded-lg border border-white/10 focus:outline-none focus:border-emerald-500/50 transition-all font-semibold"
+                />
+                
+                <button
+                  type="button"
+                  onClick={toggleMic}
+                  className={`p-2 rounded-lg border transition-all ${
+                    isMicMuted 
+                      ? 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20 cursor-pointer' 
+                      : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 cursor-pointer animate-pulse'
+                  }`}
+                  title={isMicMuted ? "Turn Mic On" : "Mute Mic"}
+                >
+                  {isMicMuted ? <RiMicOffLine size={14} /> : <RiMicLine size={14} />}
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={!inputText.trim()}
+                  className="p-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:hover:bg-emerald-500 text-black transition-all cursor-pointer"
+                >
+                  <span className="text-[10px] font-bold font-mono px-1">SEND</span>
+                </button>
+              </form>
+
+              {/* Speech Watchdog Status Indicator */}
+              {!isMicMuted && (
+                <div className="flex items-center justify-between mt-2 px-1 text-[8px] font-mono tracking-widest text-zinc-500 uppercase">
+                  <span>Speech Auto-Submit</span>
+                  <span className={interimSpeech ? "text-emerald-400 animate-pulse" : "text-zinc-600"}>
+                    {interimSpeech ? "Tuning (3s pause to send)" : "Listening..."}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

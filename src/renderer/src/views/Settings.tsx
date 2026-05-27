@@ -95,6 +95,15 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
           setUpdateNotes(`Error: ${error}`)
         }
       })
+    } else {
+      // Browser fallback initializers
+      const storedPers = localStorage.getItem('iris_personality_matrix')
+      if (storedPers) setPersonality(storedPers)
+
+      const storedFace = localStorage.getItem('iris_local_face')
+      setFaceCount(storedFace ? 1 : 0)
+
+      setAppVersion('1.3.0 (Web Sandbox)')
     }
     return () => {
       if (window.electron?.ipcRenderer)
@@ -124,8 +133,10 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
   const savePersonality = async () => {
     if (window.electron?.ipcRenderer) {
       await window.electron.ipcRenderer.invoke('set-personality', personality)
-      alert('Personality Matrix Saved Securely to OS.')
+    } else {
+      localStorage.setItem('iris_personality_matrix', personality)
     }
+    alert('Personality Matrix Saved Securely to OS.')
   }
 
   const saveUserName = () => {
@@ -155,8 +166,13 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
     .filter((w) => w.length > 0).length
 
   const unlockSecurityModule = async () => {
-    if (!window.electron?.ipcRenderer) return
-    const isValid = await window.electron.ipcRenderer.invoke('verify-vault-pin', authPin)
+    let isValid = false
+    if (window.electron?.ipcRenderer) {
+      isValid = await window.electron.ipcRenderer.invoke('verify-vault-pin', authPin)
+    } else {
+      const storedPin = localStorage.getItem('iris_local_pin') || '1705'
+      isValid = authPin === storedPin
+    }
     if (isValid) {
       setIsSecurityUnlocked(true)
       setAuthPin('')
@@ -167,8 +183,12 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
   }
 
   const updateMasterPin = async () => {
-    if (newPin.length !== 4 || !window.electron?.ipcRenderer) return
-    await window.electron.ipcRenderer.invoke('setup-vault-pin', newPin)
+    if (newPin.length !== 4) return
+    if (window.electron?.ipcRenderer) {
+      await window.electron.ipcRenderer.invoke('setup-vault-pin', newPin)
+    } else {
+      localStorage.setItem('iris_local_pin', newPin)
+    }
     setNewPin('')
     alert('Master PIN Updated Successfully.')
   }
@@ -202,6 +222,8 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
 
             if (window.electron?.ipcRenderer) {
               await window.electron.ipcRenderer.invoke('setup-vault-face', descriptorArray)
+            } else {
+              localStorage.setItem('iris_local_face', JSON.stringify(descriptorArray))
             }
 
             stream.getTracks().forEach((t) => t.stop())

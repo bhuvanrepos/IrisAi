@@ -35,18 +35,24 @@ export function base64ToFloat32(base64String: string): Float32Array {
 
 export function downsampleTo16000(float32Array: Float32Array, inputSampleRate: number): Float32Array {
   if (inputSampleRate === 16000) return float32Array;
+  if (inputSampleRate < 16000) return float32Array;
   
-  const compression = inputSampleRate / 16000;
-  const length = Math.floor(float32Array.length / compression);
-  const result = new Float32Array(length);
-
-  let index = 0;
-  let inputIndex = 0;
-
-  while (index < length) {
-    result[index] = float32Array[Math.floor(inputIndex)];
-    inputIndex += compression;
-    index++;
+  const sampleRateRatio = inputSampleRate / 16000;
+  const newLength = Math.round(float32Array.length / sampleRateRatio);
+  const result = new Float32Array(newLength);
+  
+  for (let i = 0; i < newLength; i++) {
+    const start = Math.floor(i * sampleRateRatio);
+    const end = Math.floor((i + 1) * sampleRateRatio);
+    
+    let sum = 0;
+    let count = 0;
+    for (let j = start; j < end && j < float32Array.length; j++) {
+      sum += float32Array[j];
+      count++;
+    }
+    
+    result[i] = count > 0 ? sum / count : float32Array[Math.min(start, float32Array.length - 1)];
   }
   return result;
 }

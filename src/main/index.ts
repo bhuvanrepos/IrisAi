@@ -53,6 +53,22 @@ import { autoUpdater } from 'electron-updater'
 
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream')
 
+// Manually load the local .env file in the Electron main process
+const envPath = path.join(process.cwd(), '.env')
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8')
+  envContent.split(/\r?\n/).forEach((line) => {
+    const parts = line.split('=')
+    if (parts.length >= 2) {
+      const key = parts[0].trim()
+      const value = parts.slice(1).join('=').trim()
+      if (key && !key.startsWith('#')) {
+        process.env[key] = value
+      }
+    }
+  })
+}
+
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
     app.setAsDefaultProtocolClient('iris', process.execPath, [path.resolve(process.argv[1])])
@@ -253,27 +269,31 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('secure-get-keys', async () => {
-    if (!fs.existsSync(secureConfigPath)) return null
-    try {
-      const data = JSON.parse(fs.readFileSync(secureConfigPath, 'utf8'))
-      let groqKey, geminiKey
+    let groqKey = process.env.GROQ_API_KEY || ''
+    let geminiKey = process.env.GEMINI_API_KEY || ''
+    let tavilyKey = process.env.TAVILY_API_KEY || ''
 
-      if (safeStorage.isEncryptionAvailable()) {
-        groqKey = safeStorage.decryptString(Buffer.from(data.groq, 'base64'))
-        geminiKey = safeStorage.decryptString(Buffer.from(data.gemini, 'base64'))
-      } else {
-        groqKey = Buffer.from(data.groq, 'base64').toString('utf8')
-        geminiKey = Buffer.from(data.gemini, 'base64').toString('utf8')
+    if (fs.existsSync(secureConfigPath)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(secureConfigPath, 'utf8'))
+        if (safeStorage.isEncryptionAvailable()) {
+          if (!groqKey) groqKey = safeStorage.decryptString(Buffer.from(data.groq, 'base64'))
+          if (!geminiKey) geminiKey = safeStorage.decryptString(Buffer.from(data.gemini, 'base64'))
+        } else {
+          if (!groqKey) groqKey = Buffer.from(data.groq, 'base64').toString('utf8')
+          if (!geminiKey) geminiKey = Buffer.from(data.gemini, 'base64').toString('utf8')
+        }
+      } catch (err) {
+        // Fallback
       }
-
-      return { groqKey, geminiKey }
-    } catch (err) {
-      return null
     }
+
+    return { groqKey, geminiKey, tavilyKey }
   })
 
   ipcMain.handle('check-keys-exist', () => {
-    return fs.existsSync(secureConfigPath)
+    const envExists = !!(process.env.GEMINI_API_KEY && process.env.GROQ_API_KEY)
+    return envExists || fs.existsSync(secureConfigPath)
   })
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {

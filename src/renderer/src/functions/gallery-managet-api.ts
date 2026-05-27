@@ -1,15 +1,18 @@
 export const readGalleryImages = async () => {
   try {
-    const images: any[] = await window.electron.ipcRenderer.invoke('get-gallery')
-    if (!images || images.length === 0) return 'Visual Vault is empty. No images found.'
+    if (window.electron?.ipcRenderer) {
+      const images: any[] = await window.electron.ipcRenderer.invoke('get-gallery')
+      if (!images || images.length === 0) return 'Visual Vault is empty. No images found.'
 
-    return images
-      .slice(0, 25)
-      .map((img) => `🖼️ Name: "${img.displayName}" | Path: ${img.path}`)
-      .join('\n')
+      return images
+        .slice(0, 25)
+        .map((img) => `🖼️ Name: "${img.displayName}" | Path: ${img.path}`)
+        .join('\n')
+    }
   } catch (e) {
-    return 'System Error: Could not access Visual Vault.'
+    // fall through
   }
+  return 'Visual Vault is empty. No local images found in browser sandbox.'
 }
 
 export const analyzeDirectPhoto = async (filePath: string, socket: WebSocket | null) => {
@@ -30,7 +33,7 @@ export const analyzeDirectPhoto = async (filePath: string, socket: WebSocket | n
             })
           )
           resolve(
-            '✅ Photo successfully injected into your vision. You can now see it. Describe what you see to Harsh.'
+            '✅ Photo successfully injected into your vision. You can now see it. Describe what you see to Bhuvan.'
           )
         } else {
           resolve('❌ Failed: Connection not open.')
