@@ -63,7 +63,7 @@
     "react-leaflet": "^5.0.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.15.1",
-    "react-tooltip": "^6.0.4",
+    "react-tooltip": "^6.0.5",
     "reactflow": "^11.11.4",
     "recharts": "^3.8.1",
     "remark-gfm": "^4.0.1",
