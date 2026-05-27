@@ -1644,7 +1644,7 @@ ${JSON.stringify(history)}
     this.recognition = new SpeechRecognition()
     this.recognition.continuous = true
     this.recognition.interimResults = true
-    this.recognition.lang = 'hi-IN'
+    this.recognition.lang = 'en-IN'
     
     this.recognition.onresult = (event: any) => {
       this.isSpeechRecognitionActive = true // Set local speech active!

@@ -51,14 +51,48 @@ if (typeof window !== 'undefined' && !(window as any).electron) {
           } catch(e) {}
           return true;
         }
+        if (channel === 'delete-note') {
+          try {
+            const notesStr = localStorage.getItem('iris_notes') || '[]';
+            let notes = JSON.parse(notesStr);
+            notes = notes.filter((n: any) => n.title !== args[0] && n.filename !== args[0]);
+            localStorage.setItem('iris_notes', JSON.stringify(notes));
+            return true;
+          } catch(e) {
+            return false;
+          }
+        }
         if (channel === 'get-gallery') {
           return [];
+        }
+        if (channel === 'delete-image') {
+          return true;
         }
         if (channel === 'adb-get-history') {
           return [];
         }
         if (channel === 'adb-telemetry') {
           return null;
+        }
+        if (channel === 'add-message') {
+          try {
+            const historyStr = localStorage.getItem('iris_chat_history') || '[]';
+            let history = JSON.parse(historyStr);
+            history.push(args[0]);
+            if (history.length > 20) history = history.slice(-20);
+            localStorage.setItem('iris_chat_history', JSON.stringify(history));
+            return true;
+          } catch(e) {
+            return false;
+          }
+        }
+        if (channel === 'get-history') {
+          try {
+            const historyStr = localStorage.getItem('iris_chat_history') || '[]';
+            return JSON.parse(historyStr);
+          } catch(e) {
+            return [];
+          }
         }
         // Simulated handlers for standalone browser sandbox mode
         if (channel === 'open-app') {
@@ -79,32 +113,47 @@ if (typeof window !== 'undefined' && !(window as any).electron) {
             { name: 'env.example', isDirectory: false, size: 71 }
           ];
         }
-        if (channel === 'create-folder') {
-          return { success: true, output: `[SANDBOX SIMULATOR]: Folder path "${args[0]}" successfully created.` };
+        if (channel === 'create-folder' || channel === 'create-directory') {
+          return { success: true, output: `[SANDBOX SIMULATOR]: Folder structure path "${args[0]?.path || args[0]}" successfully created.` };
         }
         if (channel === 'write-file') {
-          return { success: true, output: `[SANDBOX SIMULATOR]: File "${args[0]}" written to disk.` };
+          return { success: true, output: `[SANDBOX SIMULATOR]: File "${args[0]?.fileName || args[0]}" written to disk.` };
         }
         if (channel === 'read-file') {
           return `// [SANDBOX SIMULATOR]: Simulated file content\nconsole.log("Hello, Bhuvan!");`;
         }
-        if (channel === 'open-file') {
+        if (channel === 'open-file' || channel === 'file:open') {
           return { success: true, output: `[SANDBOX SIMULATOR]: Opened local file: "${args[0]}"` };
         }
-        if (channel === 'manage-file') {
-          return { success: true, output: `[SANDBOX SIMULATOR]: File operation "${args[0]}" executed.` };
+        if (channel === 'manage-file' || channel === 'file-ops') {
+          return { success: true, output: `[SANDBOX SIMULATOR]: File operation "${args[0]?.operation || args[0]}" executed.` };
         }
-        if (channel === 'run-terminal') {
-          return { success: true, output: `[SANDBOX SIMULATOR]: Executed CLI script: "${args[0]}"\nSuccess: Command execution compiled cleanly with code 0.` };
+        if (channel === 'run-terminal' || channel === 'run-shell-command') {
+          return { success: true, output: `[SANDBOX SIMULATOR]: Executed CLI script: "${args[0]?.command || args[0]}"\nSuccess: Command execution compiled cleanly with code 0.` };
         }
-        if (channel === 'open-project') {
+        if (channel === 'open-project' || channel === 'open-in-vscode') {
           return { success: true, output: `[SANDBOX SIMULATOR]: Loaded workspace in IDE: "${args[0]}"` };
         }
         if (channel === 'take-screenshot') {
-          return { success: true, data: '' };
+          return { success: true, data: '', message: '[SANDBOX SIMULATOR]: Captured mock screen view successfully.' };
         }
         if (channel === 'set-volume') {
-          return { success: true, level: args[0] };
+          return { success: true, level: args[0], message: `[SANDBOX SIMULATOR]: Set sound volume to ${args[0]}%` };
+        }
+        if (channel === 'get-screen-size') {
+          return { width: window.innerWidth || 1920, height: window.innerHeight || 1080 };
+        }
+        if (channel === 'ghost-click-coordinate') {
+          console.log(`[SANDBOX SIMULATOR]: Clicking coordinate at x: ${args[0]?.x}, y: ${args[0]?.y}`);
+          return true;
+        }
+        if (channel === 'ghost-scroll') {
+          console.log(`[SANDBOX SIMULATOR]: Scrolling screen ${args[0]?.direction} by ${args[0]?.amount || 500}px`);
+          return true;
+        }
+        if (channel === 'ghost-sequence') {
+          console.log('[SANDBOX SIMULATOR]: Executing action macro sequence: ', args[0]);
+          return true;
         }
         if (channel === 'teleport-windows') {
           return { success: true };
