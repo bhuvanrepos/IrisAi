@@ -1660,6 +1660,10 @@ ${JSON.stringify(history)}
     this.recognition.interimResults = true
     this.recognition.lang = 'en-IN'
     
+    this.recognition.onstart = () => {
+      this.isSpeechRecognitionActive = true
+    }
+    
     this.recognition.onresult = (event: any) => {
       this.isSpeechRecognitionActive = true // Set local speech active!
       let fullTranscript = ''
