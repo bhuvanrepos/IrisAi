@@ -90,6 +90,20 @@ export class GeminiLiveService {
 
   constructor() {
     this.apiKey = ''
+
+    // Register global listener to reset SpeechRecognition state and clear buffer on turn submit/reset
+    if (typeof window !== 'undefined') {
+      window.addEventListener('iris-speech-interim', (e: any) => {
+        if (e.detail && e.detail.text === '') {
+          this.isSpeechRecognitionActive = false
+          if (this.recognition) {
+            try {
+              this.recognition.stop()
+            } catch (err) {}
+          }
+        }
+      })
+    }
   }
 
   setMute(muted: boolean) {
@@ -1661,9 +1675,11 @@ ${JSON.stringify(history)}
 
     this.recognition.onerror = (e: any) => {
       console.warn('[SpeechRecognition Error]', e.error);
+      this.isSpeechRecognitionActive = false
     }
 
     this.recognition.onend = () => {
+      this.isSpeechRecognitionActive = false
       // Auto-restart with safe timeout to allow browser engine initialization cleanup
       setTimeout(() => {
         if (this.isConnected && !this.isMicMuted && this.recognition && this.activeAudioNodes.length === 0) {
