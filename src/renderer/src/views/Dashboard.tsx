@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react'
 import Sphere from '@renderer/components/Sphere'
 import { saveMessage } from '@renderer/services/iris-ai-brain'
+import { irisService } from '@renderer/services/Iris-voice-ai'
 import {
   RiCpuLine,
   RiCameraLine,
@@ -94,6 +95,12 @@ export default function DashboardView({
 
   // 3-second silence watchdog for SpeechRecognition auto-submit
   useEffect(() => {
+    // If local browser SpeechRecognition is inactive (meaning we are falling back to Gemini's cloud transcription),
+    // we let Gemini's server-side VAD handle the silence commit automatically, avoiding duplicate sends!
+    if (!irisService.isSpeechRecognitionActive) {
+      return
+    }
+
     if (!interimSpeech.trim()) {
       if (silenceTimeoutRef.current) {
         clearTimeout(silenceTimeoutRef.current)

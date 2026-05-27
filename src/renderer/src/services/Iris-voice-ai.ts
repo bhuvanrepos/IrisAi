@@ -1702,6 +1702,10 @@ ${JSON.stringify(history)}
       this.workletNode = new AudioWorkletNode(this.audioContext, 'pcm-processor')
 
       this.workletNode.port.onmessage = (event) => {
+        // Suppress sending raw audio chunks to the socket in browser mode if high-accuracy local SpeechRecognition is active.
+        // This prevents Gemini from generating duplicate automatic audio responses to raw voice, allowing the 3s watchdog to submit exactly once.
+        if (this.isSpeechRecognitionActive) return
+
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN || this.isMicMuted || this.isAiSpeaking) return
 
         const inputData = event.data

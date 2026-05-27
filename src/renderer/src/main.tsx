@@ -148,16 +148,16 @@ if (typeof window !== 'undefined' && !(window as any).electron) {
   const tavily = process.env.TAVILY_API_KEY || '';
   const pin = process.env.LOCAL_PIN || '1705';
 
-  if (gemini && !localStorage.getItem('iris_custom_api_key')) {
+  if (gemini) {
     localStorage.setItem('iris_custom_api_key', gemini);
   }
-  if (groq && !localStorage.getItem('iris_groq_api_key')) {
+  if (groq) {
     localStorage.setItem('iris_groq_api_key', groq);
   }
-  if (tavily && !localStorage.getItem('iris_tailvy_api_key')) {
+  if (tavily) {
     localStorage.setItem('iris_tailvy_api_key', tavily);
   }
-  if (pin && !localStorage.getItem('iris_local_pin')) {
+  if (pin) {
     localStorage.setItem('iris_local_pin', pin);
   }
 }
