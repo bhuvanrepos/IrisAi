@@ -28,9 +28,19 @@ const IndexRoot = () => {
   const [isVideoOn, setIsVideoOn] = useState(false)
   const [visionMode, setVisionMode] = useState<VisionMode>('none')
 
-  const processingVideoRef = useRef<HTMLVideoElement>(document.createElement('video'))
+  const processingVideoRef = useRef<HTMLVideoElement>(null as unknown as HTMLVideoElement)
   const activeStreamRef = useRef<MediaStream | null>(null)
   const aiIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const el = document.createElement('video')
+      el.muted = true
+      el.playsInline = true
+      el.setAttribute('autoplay', 'true')
+      processingVideoRef.current = el
+    }
+  }, [])
 
   useEffect(() => {
     if (window.electron?.ipcRenderer) {
@@ -135,7 +145,13 @@ const IndexRoot = () => {
       activeStreamRef.current = stream
 
       processingVideoRef.current.srcObject = stream
-      await processingVideoRef.current.play()
+      try {
+        processingVideoRef.current.muted = true
+        processingVideoRef.current.playsInline = true
+        await processingVideoRef.current.play()
+      } catch (playErr) {
+        console.warn('Off-screen video autoplay gesture bypass:', playErr)
+      }
 
       setVisionMode(mode)
       setIsVideoOn(true)

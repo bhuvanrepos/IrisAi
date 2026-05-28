@@ -135,20 +135,20 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
 
     let progress = 0
     const progressInterval = setInterval(() => {
-      progress += Math.floor(Math.random() * 15) + 5
+      progress += Math.floor(Math.random() * 30) + 15
       if (progress >= 100) {
         progress = 100
         clearInterval(progressInterval)
       }
       setDecryptProgress(progress)
-    }, 150)
+    }, 40)
 
-    setTimeout(() => setAiStatus('ESTABLISHING NEURAL UPLINK...'), 1500)
-    setTimeout(() => setAiStatus('WORKSPACE READY. REDIRECTING.'), 2500)
+    setTimeout(() => setAiStatus('ESTABLISHING NEURAL UPLINK...'), 400)
+    setTimeout(() => setAiStatus('WORKSPACE READY. REDIRECTING.'), 800)
 
     setTimeout(() => {
       onUnlock()
-    }, 3300)
+    }, 1200)
   }
 
   const startScanning = (isFaceSetup: boolean) => {
@@ -215,7 +215,7 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
       } catch (scanErr) {
         console.error('Scan error:', scanErr)
       }
-    }, 800)
+    }, 300)
   }
 
   const handlePinChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -1655,6 +1655,14 @@ ${JSON.stringify(history)}
   }
 
   initSpeechRecognition() {
+    // Completely disable local browser SpeechRecognition inside the Electron app wrapper.
+    // Electron lacks Google's private speech engine keys, so webkitSpeechRecognition fails natively.
+    // Disabling it forces IRIS to stream clean WebRTC raw PCM chunks directly to Gemini's socket.
+    if (window.electron?.ipcRenderer) {
+      this.isSpeechRecognitionActive = false
+      return
+    }
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SpeechRecognition) return
 
