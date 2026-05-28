@@ -104,10 +104,7 @@ const IndexRoot = () => {
         if (!window.electron?.ipcRenderer) {
           // Standard browser environment fallback - CALL IMMEDIATELY to preserve transient click user activation gesture!
           stream = await navigator.mediaDevices.getDisplayMedia({
-            video: {
-              // @ts-ignore
-              displaySurface: 'monitor' // Hint Chromium to select the entire desktop monitor!
-            },
+            video: true,
             audio: false
           })
         } else {
