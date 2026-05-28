@@ -75,7 +75,7 @@ const CustomParticleSphere = ({ isSystemActive, isAiSpeaking, count = 3000 }: Cu
     // Set particle color based on neural state and response speaking state
     const targetColor = !isSystemActive 
       ? colorInactive 
-      : isAiSpeaking 
+      : irisService.isAiSpeaking 
         ? colorResponse 
         : colorActive
     ;(mesh.current.material as THREE.PointsMaterial).color.copy(targetColor)
