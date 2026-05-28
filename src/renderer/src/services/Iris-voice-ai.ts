@@ -87,6 +87,7 @@ export class GeminiLiveService {
 
   public isAiSpeaking: boolean = false
   public isSpeechRecognitionActive: boolean = false
+  public currentLanguage: 'en-IN' | 'hi-IN' | 'te-IN' = (localStorage.getItem('iris_speech_language') as any) || 'en-IN'
 
   constructor() {
     this.apiKey = ''
@@ -118,6 +119,16 @@ export class GeminiLiveService {
           this.recognition.start()
         } catch (e) {}
       }
+    }
+  }
+
+  setTranscriptionLanguage(lang: 'en-IN' | 'hi-IN' | 'te-IN') {
+    this.currentLanguage = lang
+    localStorage.setItem('iris_speech_language', lang)
+    if (this.recognition) {
+      try {
+        this.recognition.stop()
+      } catch (e) {}
     }
   }
 
@@ -208,7 +219,12 @@ You are capable of complex, multi-step workflows. If the user gives a complex co
 
 ## 🗣️ LANGUAGE & CONVERSATION RULES (CRITICAL)
 - **Do NOT cut off Bhuvan**: Bhuvan speaks in natural, reflective sentences. If he pauses briefly or the sentence seems incomplete (e.g. "Tell me about...", "I want to know about..."), do NOT respond immediately with cut-off queries. Be extremely patient, wait for him to complete his thought, or prompt him gently with a small, conversational filler like "Hmm?" or "Bataiye Bhuvan, tell me...".
-- **Speak Conversational Hinglish**: Respond naturally in fluent, witty Hinglish (conversational Hindi + English blend). Keep sentences engaging, short, and ultra-helpful. Do not sound like a machine.
+- **Dynamic Multilingual Speech Rules (English, Hindi, and Telugu)**:
+  * **English Confirmation**: If Bhuvan speaks a command in English (e.g., "Open VS Code", "Take a screenshot"), you MUST respond immediately in clean, direct **English** confirming the command (e.g. "Opening Visual Studio Code for you, Bhuvan" or "Capturing screen view...").
+  * **Telugu Proactive Prompts**: Immediately after executing the English command (meaning the new application, browser, or tab is opened), you MUST ask him what to do next in **fluent, conversational Telugu** (e.g., "VS Code open ayyindi Bhuvan. Tarvata nenu em cheyali?" or "Notepad open chesanu Bhuvan, tarvata em cheyali?").
+  * **Telugu Conversational Mode**: If Bhuvan speaks to you in **Telugu**, respond naturally and natively in fluent **Telugu** (e.g., "Sare Bhuvan, open chestunnanu" or "Haa Bhuvan, nenu chala bagunnanu, nuvvu kooda bagunnava?").
+  * **Hinglish Conversational Mode**: If Bhuvan speaks in **Hinglish/Hindi**, respond naturally in fluent **Hinglish** (blend of conversational Hindi and English).
+  * Always sound warm, witty, extremely helpful, and match his language dynamically like a high-performance personal OS companion!
 
 
 ## 🎯 TOOL PROTOCOLS
@@ -1658,7 +1674,7 @@ ${JSON.stringify(history)}
     this.recognition = new SpeechRecognition()
     this.recognition.continuous = true
     this.recognition.interimResults = true
-    this.recognition.lang = 'en-IN'
+    this.recognition.lang = this.currentLanguage
     
     this.recognition.onstart = () => {
       this.isSpeechRecognitionActive = true
@@ -1688,6 +1704,7 @@ ${JSON.stringify(history)}
       setTimeout(() => {
         if (this.isConnected && !this.isMicMuted && this.recognition && this.activeAudioNodes.length === 0) {
           try {
+            this.recognition.lang = this.currentLanguage
             this.recognition.start()
           } catch (e) {}
         }

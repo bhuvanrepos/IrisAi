@@ -13,8 +13,78 @@ import {
 } from 'electron'
 import path, { join } from 'path'
 import fs from 'fs'
+import http from 'http'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+
+// 🌐 Global Hybrid Bridge: Intercept ipcMain.handle/removeHandler to automatically register all OS automation scripts
+export const httpHandlers: Record<string, (event: any, ...args: any[]) => Promise<any> | any> = {}
+
+const originalHandle = ipcMain.handle.bind(ipcMain)
+ipcMain.handle = (channel: string, handler: any) => {
+  httpHandlers[channel] = handler
+  return originalHandle(channel, handler)
+}
+
+const originalRemoveHandler = ipcMain.removeHandler.bind(ipcMain)
+ipcMain.removeHandler = (channel: string) => {
+  delete httpHandlers[channel]
+  return originalRemoveHandler(channel)
+}
+
+// Spin up a secure, lightweight native Node HTTP command bridge server on local port 49150
+const bridgeServer = http.createServer(async (req, res) => {
+  // CORS configuration
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173')
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204)
+    res.end()
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/api/ipc') {
+    let body = ''
+    req.on('data', (chunk) => { body += chunk })
+    req.on('end', async () => {
+      try {
+        const { channel, args } = JSON.parse(body)
+        const handler = httpHandlers[channel]
+        if (handler) {
+          // Construct simulated Electron event
+          const mockEvent = {
+            sender: {
+              send: (replyChannel: string, ...replyArgs: any[]) => {
+                const allWindows = BrowserWindow.getAllWindows()
+                if (allWindows[0]) {
+                  allWindows[0].webContents.send(replyChannel, ...replyArgs)
+                }
+              }
+            }
+          }
+          const result = await handler(mockEvent, ...(args || []))
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: true, data: result }))
+        } else {
+          res.writeHead(404, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, error: `Handler for channel "${channel}" not registered.` }))
+        }
+      } catch (err: any) {
+        res.writeHead(500, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: false, error: err.message }))
+      }
+    })
+  } else {
+    res.writeHead(404)
+    res.end()
+  }
+})
+
+bridgeServer.listen(49150, '127.0.0.1', () => {
+  console.log('👁️ [IRIS Native Bridge] Listening on http://localhost:49150 for Chrome browser actions')
+})
 
 import registerIpcHandlers from './logic/iris-memory-save'
 import registerSystemHandlers from './logic/get-system-info'

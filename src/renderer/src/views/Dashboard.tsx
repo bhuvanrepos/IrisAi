@@ -73,6 +73,16 @@ export default function DashboardView({
   const [isAiSpeaking, setIsAiSpeaking] = useState(false)
   const [inputText, setInputText] = useState('')
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
+  const [speechLang, setSpeechLang] = useState<'en-IN' | 'hi-IN' | 'te-IN'>(irisService.currentLanguage)
+
+  const handleLanguageCycle = () => {
+    const languages: ('en-IN' | 'hi-IN' | 'te-IN')[] = ['en-IN', 'hi-IN', 'te-IN']
+    const currentIndex = languages.indexOf(speechLang)
+    const nextLang = languages[(currentIndex + 1) % languages.length]
+    setSpeechLang(nextLang)
+    irisService.setTranscriptionLanguage(nextLang)
+  }
 
   const handleTextSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -583,7 +593,7 @@ export default function DashboardView({
                   <span className="w-0.5 h-2.5 bg-emerald-400 rounded-full animate-[soundwave_0.8s_ease-in-out_infinite_0.45s]" />
                 </div>
                 <span className="text-[10px] font-mono tracking-widest text-emerald-400 font-black">
-                  NEURAL COGNITIVE RECEPTION
+                  NEURAL COGNITIVE RECEPTION ({speechLang === 'en-IN' ? 'ENG/HIN' : speechLang === 'hi-IN' ? 'HINDI' : 'TELUGU'})
                 </span>
               </div>
               <p className="text-[11px] font-mono font-semibold text-zinc-100 leading-relaxed text-center break-words min-w-[280px] max-w-sm">
@@ -625,6 +635,14 @@ export default function DashboardView({
               className={`cursor-pointer p-3 rounded-full transition-all ${isMicMuted ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/10 text-emerald-400'}`}
             >
               {isMicMuted ? <RiMicOffLine size={20} /> : <RiMicLine size={20} />}
+            </button>
+            <button
+              onClick={handleLanguageCycle}
+              className="cursor-pointer p-3 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/25 transition-all shadow-[0_0_15px_rgba(16,185,129,0.15)] flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-widest"
+              title="Switch Transcription Language"
+            >
+              <RiEarthLine size={20} className="animate-[spin_10s_linear_infinite] text-emerald-400/80" />
+              <span>{speechLang === 'en-IN' ? 'ENG/HIN' : speechLang === 'hi-IN' ? 'HINDI' : 'TELUGU'}</span>
             </button>
           </div>
         </div>
@@ -728,7 +746,7 @@ export default function DashboardView({
                       ? "Type a command..." 
                       : interimSpeech 
                         ? `Live: ${interimSpeech}` 
-                        : "Speak or type..."
+                        : `Speak in ${speechLang === 'en-IN' ? 'English/Hinglish' : speechLang === 'hi-IN' ? 'Hindi' : 'Telugu'}...`
                   }
                   className="flex-1 bg-black/40 text-white placeholder-zinc-500 text-[11px] font-mono px-3 py-2 rounded-lg border border-white/10 focus:outline-none focus:border-emerald-500/50 transition-all font-semibold"
                 />

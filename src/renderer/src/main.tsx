@@ -13,6 +13,23 @@ if (typeof window !== 'undefined' && !(window as any).electron) {
     ipcRenderer: {
       invoke: async (channel: string, ...args: any[]) => {
         console.warn(`[Browser Mode IPC mock] invoke channel: ${channel}`, args);
+        
+        // 🌐 Hybrid Bridge: Route Chrome browser queries to Electron's native command bridge on localhost
+        try {
+          const response = await fetch('http://localhost:49150/api/ipc', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channel, args })
+          });
+          if (response.ok) {
+            const payload = await response.json();
+            if (payload.success) {
+              return payload.data;
+            }
+          }
+        } catch (e) {
+          // Local bridge offline; fall back cleanly to sandbox simulations
+        }
         if (channel === 'check-vault-status') {
           const hasPin = localStorage.getItem('iris_local_pin') !== null;
           const hasFace = localStorage.getItem('iris_local_face') !== null;
