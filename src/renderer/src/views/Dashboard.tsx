@@ -137,7 +137,7 @@ export default function DashboardView({
         setInterimSpeech('')
         window.dispatchEvent(new CustomEvent('iris-speech-interim', { detail: { text: '' } }))
       }
-    }, 3000)
+    }, 1200)
 
     return () => {
       if (silenceTimeoutRef.current) {

@@ -1770,7 +1770,7 @@ ${JSON.stringify(history)}
         this.rawAudioBuffer.push(inputData)
         this.rawAudioBufferLength += inputData.length
 
-        const requiredRawSamples = Math.floor(2048 * (inputSampleRate / 16000))
+        const requiredRawSamples = Math.floor(1024 * (inputSampleRate / 16000))
 
         if (this.rawAudioBufferLength >= requiredRawSamples) {
           const combined = new Float32Array(this.rawAudioBufferLength)
