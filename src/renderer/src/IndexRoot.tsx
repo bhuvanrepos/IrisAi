@@ -101,7 +101,16 @@ const IndexRoot = () => {
           video: { width: 640, height: 480 }
         })
       } else {
-        if (window.electron?.ipcRenderer) {
+        if (!window.electron?.ipcRenderer) {
+          // Standard browser environment fallback - CALL IMMEDIATELY to preserve transient click user activation gesture!
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+              // @ts-ignore
+              displaySurface: 'monitor' // Hint Chromium to select the entire desktop monitor!
+            },
+            audio: false
+          })
+        } else {
           const sourceId = await getScreenSourceId()
           if (sourceId) {
             stream = await navigator.mediaDevices.getUserMedia({
@@ -120,9 +129,6 @@ const IndexRoot = () => {
             // Fallback for electron context if sourceId fails
             stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
           }
-        } else {
-          // Standard browser environment fallback
-          stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
         }
       }
 
