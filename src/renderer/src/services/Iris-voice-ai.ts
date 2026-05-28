@@ -1314,11 +1314,20 @@ ${JSON.stringify(history)}
 
         const serverContent = data.serverContent
 
+        if (data.toolCall || serverContent) {
+          if (!this.isAiSpeaking) {
+            this.isAiSpeaking = true
+            window.dispatchEvent(new CustomEvent('iris-ai-speaking', { detail: { speaking: true } }))
+          }
+        }
+
         if (serverContent?.interrupted) {
           this.stopAllAudio()
           this.aiResponseBuffer = ''
           this.userInputBuffer = ''
+          this.isAiSpeaking = false
           window.dispatchEvent(new CustomEvent('iris-speech-interim', { detail: { text: '' } }))
+          window.dispatchEvent(new CustomEvent('iris-ai-speaking', { detail: { speaking: false } }))
         }
 
         if (data.toolCall) {
@@ -1599,12 +1608,14 @@ ${JSON.stringify(history)}
             })
           }
 
-          if (serverContent.outputTranscription?.text) {
-            this.aiResponseBuffer += serverContent.outputTranscription.text
+          const outputTrans = serverContent.outputAudioTranscription || serverContent.outputTranscription
+          if (outputTrans?.text) {
+            this.aiResponseBuffer += outputTrans.text
           }
 
-          if (serverContent.inputTranscription?.text) {
-            this.userInputBuffer += serverContent.inputTranscription.text
+          const inputTrans = serverContent.inputAudioTranscription || serverContent.inputTranscription
+          if (inputTrans?.text) {
+            this.userInputBuffer += inputTrans.text
             // Dispatch live cloud transcript in real-time if the local SpeechRecognition is inactive
             if (!this.isSpeechRecognitionActive) {
               window.dispatchEvent(
@@ -1625,6 +1636,12 @@ ${JSON.stringify(history)}
             if (this.aiResponseBuffer.trim()) {
               await saveMessage('iris', this.aiResponseBuffer.trim())
               this.aiResponseBuffer = ''
+            }
+
+            // End active speaking state if no audio nodes are currently playing
+            if (this.activeAudioNodes.length === 0) {
+              this.isAiSpeaking = false
+              window.dispatchEvent(new CustomEvent('iris-ai-speaking', { detail: { speaking: false } }))
             }
           }
         }

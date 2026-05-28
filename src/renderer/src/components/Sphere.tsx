@@ -53,7 +53,7 @@ const CustomParticleSphere = ({ isSystemActive, isAiSpeaking, count = 3000 }: Cu
 
     let volume = 0
     if (isSystemActive) {
-      if (isAiSpeaking && irisService.analyser) {
+      if (irisService.analyser) {
         irisService.analyser.getByteFrequencyData(dataArray)
 
         let sum = 0
@@ -62,8 +62,12 @@ const CustomParticleSphere = ({ isSystemActive, isAiSpeaking, count = 3000 }: Cu
           sum += dataArray[i]
         }
         volume = sum / len / 128
+
+        // If it's silent, fall back to a small organic heartbeat breathing wave
+        if (volume < 0.005) {
+          volume = Math.sin(state.clock.getElapsedTime() * 3) * 0.015 + 0.015
+        }
       } else {
-        // Heartbeat breathing wave when idle green to show it is alive
         volume = Math.sin(state.clock.getElapsedTime() * 3) * 0.015 + 0.015
       }
     }

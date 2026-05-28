@@ -790,7 +790,7 @@ export default function DashboardView({
                 <div className="flex items-center justify-between mt-2 px-1 text-[8px] font-mono tracking-widest text-zinc-500 uppercase">
                   <span>Speech Auto-Submit</span>
                   <span className={interimSpeech ? "text-emerald-400 animate-pulse" : "text-zinc-600"}>
-                    {interimSpeech ? "Tuning (3s pause to send)" : "Listening..."}
+                    {interimSpeech ? "Tuning (1.2s pause to send)" : "Listening..."}
                   </span>
                 </div>
               )}
