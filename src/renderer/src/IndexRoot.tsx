@@ -104,7 +104,10 @@ const IndexRoot = () => {
         if (!window.electron?.ipcRenderer) {
           // Standard browser environment fallback - CALL IMMEDIATELY to preserve transient click user activation gesture!
           stream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
+            video: {
+              // @ts-ignore
+              displaySurface: 'monitor'
+            },
             audio: false
           })
         } else {

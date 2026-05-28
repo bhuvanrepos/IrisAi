@@ -272,21 +272,8 @@ ${JSON.stringify(history)}
     this.analyser.fftSize = 1024
     this.analyser.smoothingTimeConstant = 0.1
 
-    const audioWorkletCode = `
-      class PCMProcessor extends AudioWorkletProcessor {
-        process(inputs, outputs, parameters) {
-          const input = inputs[0];
-          if (input.length > 0) {
-            this.port.postMessage(input[0]);
-          }
-          return true;
-        }
-      }
-      registerProcessor('pcm-processor', PCMProcessor);
-    `
-    const blob = new Blob([audioWorkletCode], { type: 'application/javascript' })
-    const workletUrl = URL.createObjectURL(blob)
-    await this.audioContext.audioWorklet.addModule(workletUrl)
+    // Load static pcm-processor.js served from public directory to bypass strict Electron CSP rules
+    await this.audioContext.audioWorklet.addModule('./pcm-processor.js')
 
     const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${this.apiKey}`
     this.socket = new WebSocket(url)
