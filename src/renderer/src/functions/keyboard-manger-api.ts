@@ -2,6 +2,7 @@ export const ghostType = async (text: string) => {
   try {
     const actions = [{ type: 'type', text: text }]
     await window.electron.ipcRenderer.invoke('ghost-sequence', actions)
+    await new Promise((resolve) => setTimeout(resolve, 200))
     return '✅ Typing complete.'
   } catch (error) {
     return '❌ Failed to type.'

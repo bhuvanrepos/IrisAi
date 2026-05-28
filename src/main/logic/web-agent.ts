@@ -16,7 +16,15 @@ const USER_BOOKMARKS: Record<string, string> = {
 const getSmartUrl = (
   query: string
 ): { url: string; source: string; skipScrape: boolean } | null => {
-  const lower = query.toLowerCase()
+  const trimmed = query.trim()
+  const lower = trimmed.toLowerCase()
+
+  // Match absolute domain names or explicit URLs (e.g., yahoo.com, bhuvan.dev, https://...)
+  const domainPattern = /^(https?:\/\/)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?$/
+  if (domainPattern.test(trimmed)) {
+    const url = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`
+    return { url, source: 'Direct URL', skipScrape: false }
+  }
 
   for (const [key, url] of Object.entries(USER_BOOKMARKS)) {
     if (lower.includes(key)) {
@@ -54,6 +62,12 @@ const getSmartUrl = (
 
   if (lower.startsWith('open ') || lower.startsWith('go to ')) {
     const term = lower.replace(/^(open|go to)( the)?\s+/, '').trim()
+
+    // If the term itself is a domain/URL, navigate directly
+    if (domainPattern.test(term)) {
+      const url = term.startsWith('http') ? term : `https://${term}`
+      return { url, source: 'Direct URL', skipScrape: false }
+    }
 
     if (!term.includes('who') && !term.includes('what') && !term.includes('how')) {
       return {

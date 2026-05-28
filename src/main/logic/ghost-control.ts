@@ -108,7 +108,19 @@ export default function registerGhostControl(ipcMain: IpcMain) {
         } else if (action.type === 'wait') {
           await new Promise((r) => setTimeout(r, action.ms || 500))
         } else if (action.type === 'type') {
-          await keyboard.type(action.text)
+          if (action.text.length <= 1) {
+            await keyboard.type(action.text)
+          } else {
+            const oldText = clipboard.readText()
+            clipboard.writeText(action.text)
+            await new Promise((r) => setTimeout(r, 100))
+            await keyboard.pressKey(Key.LeftControl, Key.V)
+            await keyboard.releaseKey(Key.V, Key.LeftControl)
+            await new Promise((r) => setTimeout(r, 150))
+            if (oldText !== undefined) {
+              clipboard.writeText(oldText)
+            }
+          }
         } else if (action.type === 'press') {
           const k = KEY_MAP[action.key.toLowerCase()]
           if (k !== undefined) {
