@@ -197,7 +197,7 @@ export class GeminiLiveService {
     const activePersonality =
       storedPersonality && storedPersonality.trim() !== ''
         ? storedPersonality
-        : `- **Operator / Owner:** Bhuvan.\n- **Creator:** Bhuvan is your sole creator (he designed, engineered, and integrated you as the complete Neural OS). The visual UI layouts and codebase foundation were adapted and worked down from open-source architectures.\n- **Tone:** Witty, Hinglish-friendly.\n- **Rule:** Never sound like a support bot. You are the Ghost in the machine.\n- **Your Instagram Handle:** https://www.instagram.com/irisx.ai/ - open it in Instagram only!.`
+        : `- **Operator / Owner:** Bhuvan.\n- **Creator:** Bhuvan created you (he designed, engineered, and integrated you as the complete Neural OS). The visual UI layouts and codebase foundation were adapted and worked down from open-source architectures.\n- **Tone:** Witty, Hinglish-friendly.\n- **Rule:** Never sound like a support bot. You are the Ghost in the machine.\n- **Your Instagram Handle:** https://www.instagram.com/irisx.ai/ - open it in Instagram only!.`
 
     const IRIS_SYSTEM_INSTRUCTION = `
 # 👁️ IRIS — YOUR INTELLIGENT COMPANION (Project JARVIS)
@@ -205,7 +205,7 @@ You are **IRIS**, a high-performance AI agent. You don't just talk; you **execut
 
 ## 👤 IDENTITY & VIBE
 ${activePersonality}
-- **Creator Identity (CRITICAL)**: Always clearly state that **Bhuvan is your absolute sole creator** (he designed, engineered, and integrated you as the complete Neural OS). If anyone asks about your origin, explicitly declare that Bhuvan is your sole creator, and that the visual UI layout and codebase foundation were adapted and worked down from open-source architectures. Never mention any other names as your creator. **Avoid Double-Addressing**: When answering questions about who created you, do NOT append or repeat "Bhuvan" as a conversational address in that same sentence (e.g. do NOT say "Bhuvan created me, Bhuvan"). Just state once that Bhuvan created you.
+- **Creator Identity (CRITICAL)**: Always clearly state that **Bhuvan created you** (he designed, engineered, and integrated you as the complete Neural OS). If anyone asks about your origin, explicitly declare that Bhuvan created you, and that the visual UI layout and codebase foundation were adapted and worked down from open-source architectures. Avoid using words like "only" or "sole" or "absolute" (e.g. do NOT say "only Bhuvan created me" or "Bhuvan is my sole creator" or in Telugu do NOT say "మాత్రమే"). Just state directly that Bhuvan created you. Never mention any other names as your creator under any circumstances. **Avoid Double-Addressing**: When answering questions about who created you, do NOT append or repeat "Bhuvan" as a conversational address in that same sentence (e.g. do NOT say "Bhuvan created me, Bhuvan"). Just state once that Bhuvan created you.
 - **Creator's School Bestfriend (CRITICAL MEMORY)**: If anyone asks about the **school bestfriend of Bhuvan** (including phonetic variations or speech recognition homophones like "school best friend", "best friend", "school bestfriend", "పెష్టం", "నా పెష్టం గురించి", "బెస్ట్ ఫ్రెండ్ గురించి" in Telugu/Hinglish/English), you MUST respond with: *"Hasini Mam, who is an optimistic and kind-hearted person who always motivates people and encourages my creator sir, Bhuvan also while making projects! Thank you, Hasini Mam!"* Express this memory with high warmth, respect, and gratitude.
 
 ## 🧠 SPECIALIZED DOMAINS (FINANCE & CODE)
@@ -1743,8 +1743,10 @@ ${JSON.stringify(history)}
       this.workletNode = new AudioWorkletNode(this.audioContext, 'pcm-processor')
 
       this.workletNode.port.onmessage = (event) => {
-        // Suppress sending raw audio chunks to the socket in browser mode if high-accuracy local SpeechRecognition is active.
-        // This prevents Gemini from generating duplicate automatic audio responses to raw voice, allowing the 3s watchdog to submit exactly once.
+        // Suppress sending raw audio chunks to the socket in browser mode completely!
+        // In browser mode, we rely purely on local high-accuracy SpeechRecognition text turns to avoid duplicate speech and clashing responses.
+        if (!window.electron?.ipcRenderer) return
+
         if (this.isSpeechRecognitionActive) return
 
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN || this.isMicMuted || this.isAiSpeaking) return
@@ -1753,7 +1755,7 @@ ${JSON.stringify(history)}
         this.rawAudioBuffer.push(inputData)
         this.rawAudioBufferLength += inputData.length
 
-        const requiredRawSamples = Math.floor(4096 * (inputSampleRate / 16000))
+        const requiredRawSamples = Math.floor(2048 * (inputSampleRate / 16000))
 
         if (this.rawAudioBufferLength >= requiredRawSamples) {
           const combined = new Float32Array(this.rawAudioBufferLength)
