@@ -74,10 +74,10 @@ export default function DashboardView({
   const [inputText, setInputText] = useState('')
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
-  const [speechLang, setSpeechLang] = useState<'en-IN' | 'hi-IN' | 'te-IN'>(irisService.currentLanguage)
+  const [speechLang, setSpeechLang] = useState<'en-US' | 'en-IN' | 'hi-IN' | 'te-IN'>(irisService.currentLanguage)
 
   const handleLanguageCycle = () => {
-    const languages: ('en-IN' | 'hi-IN' | 'te-IN')[] = ['en-IN', 'hi-IN', 'te-IN']
+    const languages: ('en-US' | 'en-IN' | 'hi-IN' | 'te-IN')[] = ['en-US', 'en-IN', 'hi-IN', 'te-IN']
     const currentIndex = languages.indexOf(speechLang)
     const nextLang = languages[(currentIndex + 1) % languages.length]
     setSpeechLang(nextLang)
@@ -188,6 +188,7 @@ export default function DashboardView({
       try {
         const MODEL_URL = './models'
         await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
           faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
           faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
           faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL)
@@ -225,11 +226,22 @@ export default function DashboardView({
           const ctx = canvas.getContext('2d')
           if (!ctx) return
 
-          const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 })
-          const detection = await faceapi
-            .detectSingleFace(video, options)
-            .withFaceExpressions()
-            .withAgeAndGender()
+          let detection: any = null
+          try {
+            // Attempt ultra-fast TinyFaceDetector first
+            const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+            detection = await faceapi
+              .detectSingleFace(video, options)
+              .withFaceExpressions()
+              .withAgeAndGender()
+          } catch (tinyErr) {
+            // Fallback to heavy SSD Mobilenet if TinyFaceDetector fails
+            const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 })
+            detection = await faceapi
+              .detectSingleFace(video, options)
+              .withFaceExpressions()
+              .withAgeAndGender()
+          }
 
           ctx.clearRect(0, 0, vw, vh)
 
@@ -593,7 +605,7 @@ export default function DashboardView({
                   <span className="w-0.5 h-2.5 bg-emerald-400 rounded-full animate-[soundwave_0.8s_ease-in-out_infinite_0.45s]" />
                 </div>
                 <span className="text-[10px] font-mono tracking-widest text-emerald-400 font-black">
-                  NEURAL COGNITIVE RECEPTION ({speechLang === 'en-IN' ? 'ENG/HIN' : speechLang === 'hi-IN' ? 'HINDI' : 'TELUGU'})
+                  NEURAL COGNITIVE RECEPTION ({speechLang === 'en-US' ? 'ENGLISH' : speechLang === 'en-IN' ? 'ENG/HIN' : speechLang === 'hi-IN' ? 'HINDI' : 'TELUGU'})
                 </span>
               </div>
               <p className="text-[11px] font-mono font-semibold text-zinc-100 leading-relaxed text-center break-words min-w-[280px] max-w-sm">
@@ -642,7 +654,7 @@ export default function DashboardView({
               title="Switch Transcription Language"
             >
               <RiEarthLine size={20} className="animate-[spin_10s_linear_infinite] text-emerald-400/80" />
-              <span>{speechLang === 'en-IN' ? 'ENG/HIN' : speechLang === 'hi-IN' ? 'HINDI' : 'TELUGU'}</span>
+              <span>{speechLang === 'en-US' ? 'ENGLISH' : speechLang === 'en-IN' ? 'ENG/HIN' : speechLang === 'hi-IN' ? 'HINDI' : 'TELUGU'}</span>
             </button>
           </div>
         </div>
@@ -746,7 +758,7 @@ export default function DashboardView({
                       ? "Type a command..." 
                       : interimSpeech 
                         ? `Live: ${interimSpeech}` 
-                        : `Speak in ${speechLang === 'en-IN' ? 'English/Hinglish' : speechLang === 'hi-IN' ? 'Hindi' : 'Telugu'}...`
+                        : `Speak in ${speechLang === 'en-US' ? 'English' : speechLang === 'en-IN' ? 'English/Hinglish' : speechLang === 'hi-IN' ? 'Hindi' : 'Telugu'}...`
                   }
                   className="flex-1 bg-black/40 text-white placeholder-zinc-500 text-[11px] font-mono px-3 py-2 rounded-lg border border-white/10 focus:outline-none focus:border-emerald-500/50 transition-all font-semibold"
                 />

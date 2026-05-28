@@ -33,12 +33,22 @@ const IndexRoot = () => {
   const aiIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    if (typeof document !== 'undefined') {
-      const el = document.createElement('video')
-      el.muted = true
-      el.playsInline = true
-      el.setAttribute('autoplay', 'true')
-      processingVideoRef.current = el
+    if (typeof document === 'undefined') return
+    const el = document.createElement('video')
+    el.muted = true
+    el.playsInline = true
+    el.style.position = 'absolute'
+    el.style.width = '0'
+    el.style.height = '0'
+    el.style.opacity = '0'
+    el.style.pointerEvents = 'none'
+    el.setAttribute('autoplay', 'true')
+    document.body.appendChild(el)
+    processingVideoRef.current = el
+    return () => {
+      try {
+        document.body.removeChild(el)
+      } catch (e) {}
     }
   }, [])
 
@@ -113,13 +123,26 @@ const IndexRoot = () => {
       } else {
         if (!window.electron?.ipcRenderer) {
           // Standard browser environment fallback - CALL IMMEDIATELY to preserve transient click user activation gesture!
-          stream = await navigator.mediaDevices.getDisplayMedia({
-            video: {
+          try {
+            stream = await navigator.mediaDevices.getDisplayMedia({
+              video: {
+                // @ts-ignore
+                displaySurface: 'monitor',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              },
+              audio: false,
               // @ts-ignore
-              displaySurface: 'monitor'
-            },
-            audio: false
-          })
+              preferCurrentTab: false,
+              selfBrowserSurface: 'exclude'
+            })
+          } catch (displayErr) {
+            console.warn('[Screensharing] Resilient monitor constraints failed, trying generic sharing constraints...', displayErr)
+            stream = await navigator.mediaDevices.getDisplayMedia({
+              video: true,
+              audio: false
+            })
+          }
         } else {
           const sourceId = await getScreenSourceId()
           if (sourceId) {
@@ -190,8 +213,8 @@ const IndexRoot = () => {
       const vid = processingVideoRef.current
       if (vid && vid.readyState === 4 && irisService.socket?.readyState === WebSocket.OPEN) {
         const canvas = document.createElement('canvas')
-        canvas.width = 360
-        canvas.height = 202
+        canvas.width = 1280
+        canvas.height = 720
         const ctx = canvas.getContext('2d')
         if (ctx) {
           ctx.drawImage(vid, 0, 0, canvas.width, canvas.height)

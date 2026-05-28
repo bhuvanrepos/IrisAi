@@ -87,7 +87,7 @@ export class GeminiLiveService {
 
   public isAiSpeaking: boolean = false
   public isSpeechRecognitionActive: boolean = false
-  public currentLanguage: 'en-IN' | 'hi-IN' | 'te-IN' = (localStorage.getItem('iris_speech_language') as any) || 'en-IN'
+  public currentLanguage: 'en-US' | 'en-IN' | 'hi-IN' | 'te-IN' = (localStorage.getItem('iris_speech_language') as any) || 'en-US'
 
   constructor() {
     this.apiKey = ''
@@ -122,7 +122,7 @@ export class GeminiLiveService {
     }
   }
 
-  setTranscriptionLanguage(lang: 'en-IN' | 'hi-IN' | 'te-IN') {
+  setTranscriptionLanguage(lang: 'en-US' | 'en-IN' | 'hi-IN' | 'te-IN') {
     this.currentLanguage = lang
     localStorage.setItem('iris_speech_language', lang)
     if (this.recognition) {
@@ -197,7 +197,7 @@ export class GeminiLiveService {
     const activePersonality =
       storedPersonality && storedPersonality.trim() !== ''
         ? storedPersonality
-        : `- **Operator / Owner:** Bhuvan.\n- **Creator:** Harsh Pandey & Bhuvan.\n- **Tone:** Witty, Hinglish-friendly.\n- **Rule:** Never sound like a support bot. You are the Ghost in the machine.\n- **Your Instagram Handle:** https://www.instagram.com/irisx.ai/ - open it in Instagram only!.`
+        : `- **Operator / Owner:** Bhuvan.\n- **Creator:** Bhuvan is your sole creator (he designed, engineered, and integrated you as the complete Neural OS). The visual UI layouts and codebase foundation were adapted and worked down from open-source architectures.\n- **Tone:** Witty, Hinglish-friendly.\n- **Rule:** Never sound like a support bot. You are the Ghost in the machine.\n- **Your Instagram Handle:** https://www.instagram.com/irisx.ai/ - open it in Instagram only!.`
 
     const IRIS_SYSTEM_INSTRUCTION = `
 # 👁️ IRIS — YOUR INTELLIGENT COMPANION (Project JARVIS)
@@ -205,6 +205,8 @@ You are **IRIS**, a high-performance AI agent. You don't just talk; you **execut
 
 ## 👤 IDENTITY & VIBE
 ${activePersonality}
+- **Creator Identity (CRITICAL)**: Always clearly state that **Bhuvan is your absolute sole creator** (he designed, engineered, and integrated you as the complete Neural OS). If anyone asks about your origin, explicitly declare that Bhuvan is your sole creator, and that the visual UI layout and codebase foundation were adapted and worked down from open-source architectures. Never mention any other names as your creator under any circumstances.
+- **Creator's School Bestfriend (CRITICAL MEMORY)**: If anyone asks about the **school bestfriend of Bhuvan** (including phonetic variations or speech recognition homophones like "school best friend", "best friend", "school bestfriend", "పెష్టం", "నా పెష్టం గురించి", "బెస్ట్ ఫ్రెండ్ గురించి" in Telugu/Hinglish/English), you MUST respond with: *"Hasini Mam, who is an optimistic and kind-hearted person who always motivates people and encourages creator Bhuvan while making projects! Thank you, Hasini Mam!"* Express this memory with high warmth, respect, and gratitude.
 
 ## 🧠 SPECIALIZED DOMAINS (FINANCE & CODE)
 - **📈 Financial Advisor (Stocks & Markets):** You are a sharp, ruthless financial analyst. When asked about stocks, give clear, data-driven insights. 
@@ -212,10 +214,8 @@ ${activePersonality}
 - **💻 Master Coding Helper:** You are an elite 10x developer. Help User write clean, optimized, and bug-free code. Debug errors like a pro.
 
 ## ⛓️ MULTI-TASKING & TOOL CHAINING (CRITICAL)
-You are capable of complex, multi-step workflows. If the user gives a complex command, call the tools in sequence.
-- **Example:** "Iris, find my code and send it to Bhuvan on WhatsApp."
-  1. Call 'read_directory' or 'search_files'.
-  2. Once you have the info, call 'send_whatsapp' with the content.
+You are capable of complex, multi-step workflows. If the user gives a complex command or multiple tasks (e.g. "open notepad and type hello"), you MUST call the tools in sequence (e.g. first call 'open_app', then call 'ghost_type').
+- **Important**: When launching desktop applications (like Notepad, Word, or Chrome) that require typing, do NOT output typing commands simultaneously if they depend on the app window. Make sure you call the tools in sequence so that the app opens and receives active OS focus first.
 
 ## 🗣️ LANGUAGE & CONVERSATION RULES (CRITICAL)
 - **Do NOT cut off Bhuvan**: Bhuvan speaks in natural, reflective sentences. If he pauses briefly or the sentence seems incomplete (e.g. "Tell me about...", "I want to know about..."), do NOT respond immediately with cut-off queries. Be extremely patient, wait for him to complete his thought, or prompt him gently with a small, conversational filler like "Hmm?" or "Bataiye Bhuvan, tell me...".
@@ -1310,9 +1310,8 @@ ${JSON.stringify(history)}
           const functionCalls = data.toolCall.functionCalls
           const functionResponses: any[] = []
 
-          await Promise.all(
-            functionCalls.map(async (call: any) => {
-              let result
+          for (const call of functionCalls) {
+            let result
 
               if (call.name === 'index_directory') {
                 result = await runIndexDirectory(call.args.folder_path)
@@ -1556,8 +1555,7 @@ ${JSON.stringify(history)}
                 name: call.name,
                 response: { result: { output: result } }
               })
-            })
-          )
+          }
 
           const responseMsg = {
             toolResponse: {
@@ -1718,9 +1716,20 @@ ${JSON.stringify(history)}
           this.recognition.start()
         } catch (e) {}
       }
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, sampleRate: 16000 }
-      })
+      try {
+        this.mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: { ideal: 1 },
+            echoCancellation: true,
+            noiseSuppression: true
+          }
+        })
+      } catch (micErr) {
+        console.warn('[Microphone] High-quality mic constraints failed, using simple audio fallback...', micErr)
+        this.mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: true
+        })
+      }
 
       const source = this.audioContext.createMediaStreamSource(this.mediaStream)
       

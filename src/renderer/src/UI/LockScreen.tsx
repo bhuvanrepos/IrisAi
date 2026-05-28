@@ -117,6 +117,7 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
       const MODEL_URL = './models'
 
       await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
         faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
@@ -135,20 +136,20 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
 
     let progress = 0
     const progressInterval = setInterval(() => {
-      progress += Math.floor(Math.random() * 30) + 15
+      progress += Math.floor(Math.random() * 25) + 25
       if (progress >= 100) {
         progress = 100
         clearInterval(progressInterval)
       }
       setDecryptProgress(progress)
-    }, 40)
+    }, 20)
 
-    setTimeout(() => setAiStatus('ESTABLISHING NEURAL UPLINK...'), 400)
-    setTimeout(() => setAiStatus('WORKSPACE READY. REDIRECTING.'), 800)
+    setTimeout(() => setAiStatus('ESTABLISHING NEURAL UPLINK...'), 150)
+    setTimeout(() => setAiStatus('WORKSPACE READY. REDIRECTING.'), 300)
 
     setTimeout(() => {
       onUnlock()
-    }, 1200)
+    }, 450)
   }
 
   const startScanning = (isFaceSetup: boolean) => {
@@ -159,14 +160,25 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
       if (!videoRef.current || videoRef.current.readyState !== 4 || error || isAuthorized) return
 
       try {
-        const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 })
-        const detection = await faceapi
-          .detectSingleFace(videoRef.current, options)
-          .withFaceLandmarks()
-          .withFaceDescriptor()
+        let detection: any = null
+        try {
+          // Attempt ultra-fast TinyFaceDetector first
+          const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+          detection = await faceapi
+            .detectSingleFace(videoRef.current, options)
+            .withFaceLandmarks()
+            .withFaceDescriptor()
+        } catch (tinyErr) {
+          // Fallback to heavy SSD Mobilenet if TinyFaceDetector fails
+          const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 })
+          detection = await faceapi
+            .detectSingleFace(videoRef.current, options)
+            .withFaceLandmarks()
+            .withFaceDescriptor()
+        }
 
         if (detection) {
-          const descriptorArray = Array.from(detection.descriptor)
+          const descriptorArray = Array.from(detection.descriptor) as number[]
 
           if (isFaceSetup) {
             clearInterval(scanIntervalRef.current!)

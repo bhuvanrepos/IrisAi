@@ -1,7 +1,11 @@
 export const openApp = async (appName: string) => {
   try {
     const result: any = await window.electron.ipcRenderer.invoke('open-app', appName)
-    if (result.success) return `Success: ${appName} is opening.`
+    if (result.success) {
+      // Delay execution for 1.2 seconds to allow the external application window to fully mount and gain active focus
+      await new Promise((resolve) => setTimeout(resolve, 1200))
+      return `Success: ${appName} is opening and focused.`
+    }
     return `Error: ${result.error}`
   } catch (err) {
     return `System Error: ${err}`
