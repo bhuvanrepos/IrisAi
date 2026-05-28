@@ -121,7 +121,7 @@ import registerSecurityVault from './security/Security'
 import registerLockSystem from './security/lock-system'
 import { autoUpdater } from 'electron-updater'
 
-app.commandLine.appendSwitch('use-fake-ui-for-media-stream')
+app.commandLine.appendSwitch('enable-experimental-web-platform-features')
 
 // Manually load the local .env file in the Electron main process
 const envPath = path.join(process.cwd(), '.env')
@@ -278,31 +278,11 @@ app.whenReady().then(() => {
   })
 
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    const allowedPermissions = [
-      'media',
-      'audioCapture',
-      'videoCapture',
-      'desktopVideoCapture',
-      'microphone',
-      'camera'
-    ]
-    if (allowedPermissions.includes(permission)) {
-      callback(true)
-    } else {
-      callback(false)
-    }
+    callback(true)
   })
 
   session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
-    const allowedPermissions = [
-      'media',
-      'audioCapture',
-      'videoCapture',
-      'desktopVideoCapture',
-      'microphone',
-      'camera'
-    ]
-    return allowedPermissions.includes(permission)
+    return true
   })
 
   if (process.platform === 'darwin') {

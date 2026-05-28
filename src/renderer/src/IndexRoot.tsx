@@ -101,20 +101,29 @@ const IndexRoot = () => {
           video: { width: 640, height: 480 }
         })
       } else {
-        const sourceId = await getScreenSourceId()
-        if (!sourceId) return
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            // @ts-ignore
-            mandatory: {
-              chromeMediaSource: 'desktop',
-              chromeMediaSourceId: sourceId,
-              maxWidth: 1280,
-              maxHeight: 720
-            }
+        if (window.electron?.ipcRenderer) {
+          const sourceId = await getScreenSourceId()
+          if (sourceId) {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: false,
+              video: {
+                // @ts-ignore
+                mandatory: {
+                  chromeMediaSource: 'desktop',
+                  chromeMediaSourceId: sourceId,
+                  maxWidth: 1280,
+                  maxHeight: 720
+                }
+              }
+            })
+          } else {
+            // Fallback for electron context if sourceId fails
+            stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
           }
-        })
+        } else {
+          // Standard browser environment fallback
+          stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+        }
       }
 
       activeStreamRef.current = stream
