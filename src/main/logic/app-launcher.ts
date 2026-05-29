@@ -1,6 +1,5 @@
 import { IpcMain } from 'electron'
 import { exec } from 'child_process'
-import { keyboard, Key } from '@nut-tree-fork/nut-js'
 
 const PROTECTED_PROCESSES = [
   'explorer.exe',
@@ -53,11 +52,7 @@ const APP_ALIASES: Record<string, string> = {
   files: 'explorer',
   'task manager': 'taskmgr',
   camera: 'start microsoft.windows.camera:',
-  photos: 'start microsoft.windows.photos:',
-  powerpoint: 'start powerpnt',
-  ppt: 'start powerpnt',
-  word: 'start winword',
-  excel: 'start excel'
+  photos: 'start microsoft.windows.photos:'
 }
 
 const PROCESS_NAMES: Record<string, string> = {
@@ -87,11 +82,7 @@ const PROCESS_NAMES: Record<string, string> = {
   'task manager': 'Taskmgr.exe',
   photos: 'Microsoft.Photos.exe',
   explorer: 'explorer.exe',
-  files: 'explorer.exe',
-  powerpoint: 'powerpnt.exe',
-  ppt: 'powerpnt.exe',
-  word: 'winword.exe',
-  excel: 'excel.exe'
+  files: 'explorer.exe'
 }
 
 export default function registerAppLauncher(ipcMain: IpcMain) {
@@ -99,18 +90,6 @@ export default function registerAppLauncher(ipcMain: IpcMain) {
   ipcMain.handle('open-app', async (_event, appName: string) => {
     return new Promise((resolve) => {
       const lowerName = appName.toLowerCase().trim()
-
-      if (lowerName === 'startmenu' || lowerName === 'start menu') {
-        keyboard.pressKey(Key.LeftSuper).then(() => {
-          return keyboard.releaseKey(Key.LeftSuper)
-        }).then(() => {
-          resolve({ success: true, message: 'Opened Start Menu' })
-        }).catch((e) => {
-          resolve({ success: false, error: e.message })
-        })
-        return
-      }
-
       let command = APP_ALIASES[lowerName]
 
       if (command) {
