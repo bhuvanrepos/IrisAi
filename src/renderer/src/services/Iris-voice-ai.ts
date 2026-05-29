@@ -70,6 +70,7 @@ export class GeminiLiveService {
   public apiKey: string
   public isConnected: boolean = false
   private isMicMuted: boolean = false
+  private isWaitingForTurn: boolean = false
 
   private nextStartTime: number = 0
   public model: string = 'models/gemini-2.5-flash-native-audio-preview-12-2025'
@@ -298,6 +299,8 @@ ${JSON.stringify(history)}
       if (systemPrompt && this.socket && this.socket.readyState === WebSocket.OPEN) {
         // Stop any active or queued audio playback immediately
         this.stopAllAudio()
+
+        this.isWaitingForTurn = true
 
         // Reset speech recognition to clear internal buffers and avoid duplicates
         if (this.recognition) {
@@ -1326,8 +1329,15 @@ ${JSON.stringify(history)}
           this.aiResponseBuffer = ''
           this.userInputBuffer = ''
           this.isAiSpeaking = false
+          this.isWaitingForTurn = false
           window.dispatchEvent(new CustomEvent('iris-speech-interim', { detail: { text: '' } }))
           window.dispatchEvent(new CustomEvent('iris-ai-speaking', { detail: { speaking: false } }))
+
+          if (this.isConnected && !this.isMicMuted && this.recognition) {
+            try {
+              this.recognition.start()
+            } catch (e) {}
+          }
         }
 
         if (data.toolCall) {
@@ -1641,7 +1651,15 @@ ${JSON.stringify(history)}
             // End active speaking state if no audio nodes are currently playing
             if (this.activeAudioNodes.length === 0) {
               this.isAiSpeaking = false
+              this.isWaitingForTurn = false
               window.dispatchEvent(new CustomEvent('iris-ai-speaking', { detail: { speaking: false } }))
+
+              // AI finished turn complete and no audio is active! Restart speech recognition!
+              if (this.isConnected && !this.isMicMuted && this.recognition) {
+                try {
+                  this.recognition.start()
+                } catch (e) {}
+              }
             }
           }
         }
@@ -1725,6 +1743,8 @@ ${JSON.stringify(history)}
 
     this.recognition.onend = () => {
       this.isSpeechRecognitionActive = false
+      if (this.isWaitingForTurn) return // Do not auto-restart if we are waiting for a turn response!
+
       // Auto-restart with safe timeout to allow browser engine initialization cleanup
       setTimeout(() => {
         if (this.isConnected && !this.isMicMuted && this.recognition && this.activeAudioNodes.length === 0) {
@@ -1843,6 +1863,7 @@ ${JSON.stringify(history)}
       this.activeAudioNodes = this.activeAudioNodes.filter((n) => n !== source)
       if (this.activeAudioNodes.length === 0) {
         this.isAiSpeaking = false
+        this.isWaitingForTurn = false
         window.dispatchEvent(new CustomEvent('iris-ai-speaking', { detail: { speaking: false } }))
         // AI has finished speaking! Restart speech recognition!
         if (this.isConnected && !this.isMicMuted && this.recognition) {

@@ -617,7 +617,7 @@ export default function DashboardView({
                 <div className="flex items-center gap-1.5 justify-center mt-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                   <span className="text-[8px] font-mono tracking-wider text-emerald-400/60 uppercase">
-                    Auto-submitting on 3s pause...
+                    Auto-submitting on 1.2s pause...
                   </span>
                 </div>
               )}
