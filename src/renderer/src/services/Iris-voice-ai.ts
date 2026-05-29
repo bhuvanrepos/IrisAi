@@ -1334,7 +1334,7 @@ ${JSON.stringify(history)}
           window.dispatchEvent(new CustomEvent('iris-speech-interim', { detail: { text: '' } }))
           window.dispatchEvent(new CustomEvent('iris-ai-speaking', { detail: { speaking: false } }))
 
-          if (this.isConnected && !this.isMicMuted && this.recognition) {
+          if (this.isConnected && !this.isMicMuted && this.recognition && !this.isSpeechRecognitionActive) {
             try {
               this.recognition.start()
             } catch (e) {}
@@ -1656,7 +1656,7 @@ ${JSON.stringify(history)}
               window.dispatchEvent(new CustomEvent('iris-ai-speaking', { detail: { speaking: false } }))
 
               // AI finished turn complete and no audio is active! Restart speech recognition!
-              if (this.isConnected && !this.isMicMuted && this.recognition) {
+              if (this.isConnected && !this.isMicMuted && this.recognition && !this.isSpeechRecognitionActive) {
                 try {
                   this.recognition.start()
                 } catch (e) {}
@@ -1748,7 +1748,7 @@ ${JSON.stringify(history)}
 
       // Auto-restart with safe timeout to allow browser engine initialization cleanup
       setTimeout(() => {
-        if (this.isConnected && !this.isMicMuted && this.recognition && this.activeAudioNodes.length === 0) {
+        if (this.isConnected && !this.isMicMuted && this.recognition && this.activeAudioNodes.length === 0 && !this.isSpeechRecognitionActive) {
           try {
             this.recognition.lang = this.currentLanguage
             this.recognition.start()
@@ -1867,7 +1867,7 @@ ${JSON.stringify(history)}
         this.isWaitingForTurn = false
         window.dispatchEvent(new CustomEvent('iris-ai-speaking', { detail: { speaking: false } }))
         // AI has finished speaking! Restart speech recognition!
-        if (this.isConnected && !this.isMicMuted && this.recognition) {
+        if (this.isConnected && !this.isMicMuted && this.recognition && !this.isSpeechRecognitionActive) {
           try {
             this.recognition.start()
           } catch (e) {}
